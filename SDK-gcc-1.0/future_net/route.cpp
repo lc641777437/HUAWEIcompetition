@@ -57,6 +57,22 @@ pMARK mark_alloc(void)
 
     return p;
 }
+
+pMARK nmark_alloc(void)
+{
+    pMARK p = (pMARK)malloc(sizeof(MARK));
+    if(!p)
+    {
+        printf("alloc failed!");
+    }
+    p->price = 0;
+    p->count = 0;
+    p->n = 1;
+    p->path[0] = dst_node;
+
+    return p;
+}
+
 //Num在数组arr中是否存在
 bool isExistNum(int arr[], int n, int Num)
 {
@@ -221,8 +237,6 @@ void arryPath_2(pMARK pmark[],int *route,int count)
     }
 }
 
-
-
 void arryPath_3(pMARK pmark[],int *route,int count)
 {
 	int i = 0;
@@ -262,12 +276,24 @@ void arryPath_3(pMARK pmark[],int *route,int count)
     }
 }
 
+int rezerve(pMARK p)
+{
+    int tmp;
+    for(int i = 0;i < p->n/2;i++)
+    {
+        tmp = p->path[i];
+        p->path[i] = p->path[p->n - 1 - i];
+        p->path[p->n - 1 - i] = tmp;
+    }
+    return 0;
+}
+
 MARK BFS1_6()
 {
 	int i = 0,j = 0;                              // 标记
 	int k = 0;
 	int iPrice = 0;
-    pMARK *pmark= (pMARK*)malloc(sizeof(pMARK)*2000000);
+    pMARK *pmark= (pMARK*)malloc(sizeof(pMARK)*1000000);
     pMARK pmarktmp = NULL;
     int route = 0;
     int m = 0;
@@ -368,7 +394,7 @@ MARK BFS7()
 	int i = 0,j = 0;                              // 标记
 	int k = 0;
 	int iPrice = 0;
-    pMARK *pmark= (pMARK*)malloc(sizeof(pMARK)*2000000);
+    pMARK *pmark= (pMARK*)malloc(sizeof(pMARK)*1000000);
     pMARK pmarktmp = NULL;
     int route = 0;
     int m = 0;
@@ -387,7 +413,7 @@ MARK BFS7()
         if(route <= 0)return minPath;
         for(k = 0;k < (m>route?route:m);k++)
         {
-            if(pmark[k]->price >= minPath.price || pmark[k]->count < count - 3)//如果父路径有问题,删掉
+            if(pmark[k]->price >= minPath.price || pmark[k]->count < count - 4)//如果父路径有问题,删掉
             {
                 pmarktmp = pmark[route -1];
                 pmark[route -1] = pmark[k];
@@ -459,116 +485,12 @@ MARK BFS7()
     return minPath;
 }
 
-
-MARK BFS15()
-{
-	int i = 0,j = 0;                              // 标记
-	int k = 0;
-	int iPrice = 0;
-    pMARK *pmark= (pMARK*)malloc(sizeof(pMARK)*2000000);
-    pMARK pmarktmp = NULL;
-    int route = 0;
-    int m = 0;
-    int count = 0;
-    MARK minPath;
-
-    minPath.price = MAXSIZE;
-
-    pmark[route++] = mark_alloc();//初始点
-
-    if(isDemand(src_node))pmark[0]->count++;
-
-    for(i = 0;i < node_num;i++)   //从第1点遍历到第Npoint点
-    {
-        m = route;
-        if(route <= 0)return minPath;
-        for(k = 0;k < (m>route?route:m);k++)
-        {
-            if(pmark[k]->price >= minPath.price || pmark[k]->count < count - 3)//如果父路径有问题,删掉
-            {
-                pmarktmp = pmark[route -1];
-                pmark[route -1] = pmark[k];
-                pmark[k] = pmarktmp;
-                free(pmark[route -1]);
-                route--;
-                continue;
-            }
-            for(j = 0;j < node_num;j++)
-            {
-                if( (iPrice = GraphMatric[pmark[k]->path[pmark[k]->n-1]][j].cost) <= 20)
-                {
-                    if(!isExistNum(pmark[k]->path, pmark[k]->n, j))//发现一个新的路径
-                    {
-                        pmark[route++] = mark_alloc();//申请路径存储空间
-                        *pmark[route - 1] = *pmark[k];
-                        pmark[route - 1]->n += 1;
-                        pmark[route - 1]->path[pmark[route - 1]->n -1] = j;
-                        pmark[route - 1]->price += iPrice;
-                        //lspath( pmark[route - 1]->path, pmark[route - 1]->n);
-
-                        if(pmark[route - 1]->price >= minPath.price)//新的路径有问题,删掉
-                        {
-                            free(pmark[route - 1]);
-                            route--;
-                            continue;
-                        }
-                        if(isDemand(j))
-                        {
-                            pmark[route - 1]->count++;
-                        }
-
-                        if(pmark[route - 1]->count < count - 3)//新的路径经过的必经节点少了,删掉
-                        {
-                            free(pmark[route - 1]);
-                            route--;
-                            continue;
-                        }
-                        else if(pmark[route - 1]->count > count)//必经节点多了，存起来
-                        {
-                            count = pmark[route - 1]->count;
-                        }
-
-                        if(j == dst_node)//路径到达目的地,代价小则保存，到达即删掉
-                        {
-                            if(pmark[route - 1]->count == demand_node_num && pmark[route - 1]->price < minPath.price)
-                            {
-                                minPath = *pmark[route - 1];
-                            }
-                            free(pmark[route - 1]);
-                            route--;
-                            continue;
-                        }
-                    }
-                }
-            }
-            //删除此次父节点
-            pmarktmp = pmark[route -1];
-            pmark[route -1] = pmark[k];
-            pmark[k] = pmarktmp;
-            free(pmark[route -1]);
-            route--;
-        }
-        //cout<<"route :"<<route<<endl;
-        arryPath_3(pmark,&route,count);//删除必经节点少的点
-    }
-
-    for(i=0;i<route;i++)
-    {
-        free(pmark[i]);
-    }
-    free(pmark);
-
-    return minPath;
-}
-
-
-
 MARK BFS8()
 {
 	int i = 0,j = 0;                              // 标记
 	int k = 0;
 	int iPrice = 0;
-    pMARK *pmark= (pMARK*)malloc(sizeof(pMARK)*2000000);
+    pMARK *pmark= (pMARK*)malloc(sizeof(pMARK)*1000000);
     pMARK pmarktmp = NULL;
     int route = 0;
     int m = 0;
@@ -620,7 +542,7 @@ MARK BFS8()
                             pmark[route - 1]->count++;
                         }
 
-                        if(pmark[route - 1]->count < count - 1)//新的路径经过的必经节点少了,删掉
+                        if(pmark[route - 1]->count < count - 2)//新的路径经过的必经节点少了,删掉
                         {
                             free(pmark[route - 1]);
                             route--;
@@ -636,7 +558,6 @@ MARK BFS8()
                             if(pmark[route - 1]->count == demand_node_num && pmark[route - 1]->price < minPath.price)
                             {
                                 minPath = *pmark[route - 1];
-                                return minPath;
                             }
                             free(pmark[route - 1]);
                             route--;
@@ -666,219 +587,12 @@ MARK BFS8()
 }
 
 
-MARK BFS1213()
+MARK BFS9()
 {
 	int i = 0,j = 0;                              // 标记
 	int k = 0;
 	int iPrice = 0;
-    pMARK *pmark= (pMARK*)malloc(sizeof(pMARK)*2000000);
-    pMARK pmarktmp = NULL;
-    int route = 0;
-    int m = 0;
-    int count = 0;
-    MARK minPath;
-
-    minPath.price = MAXSIZE;
-
-    pmark[route++] = mark_alloc();//初始点
-
-    if(isDemand(src_node))pmark[0]->count++;
-
-    for(i = 0;i < node_num;i++)   //从第1点遍历到第Npoint点
-    {
-        m = route;
-        if(route <= 0)return minPath;
-        for(k = 0;k < (m>route?route:m);k++)
-        {
-            if(pmark[k]->price >= minPath.price || pmark[k]->count < count - 2)//如果父路径有问题,删掉
-            {
-                pmarktmp = pmark[route -1];
-                pmark[route -1] = pmark[k];
-                pmark[k] = pmarktmp;
-                free(pmark[route -1]);
-                route--;
-                continue;
-            }
-            for(j = 0;j < node_num;j++)
-            {
-                if( (iPrice = GraphMatric[pmark[k]->path[pmark[k]->n-1]][j].cost) <= 20)
-                {
-                    if(!isExistNum(pmark[k]->path, pmark[k]->n, j))//发现一个新的路径
-                    {
-                        pmark[route++] = mark_alloc();//申请路径存储空间
-                        *pmark[route - 1] = *pmark[k];
-                        pmark[route - 1]->n += 1;
-                        pmark[route - 1]->path[pmark[route - 1]->n -1] = j;
-                        pmark[route - 1]->price += iPrice;
-                        //lspath( pmark[route - 1]->path, pmark[route - 1]->n);
-
-                        if(pmark[route - 1]->price >= minPath.price)//新的路径有问题,删掉
-                        {
-                            free(pmark[route - 1]);
-                            route--;
-                            continue;
-                        }
-
-                        if(isDemand(j))//是必经节点，加
-                        {
-                            pmark[route - 1]->count++;
-                        }
-
-                        if(pmark[route - 1]->count < count -1)//新的路径经过的必经节点少了,删掉
-                        {
-                            free(pmark[route - 1]);
-                            route--;
-                            continue;
-                        }
-                        else if(pmark[route - 1]->count > count )//必经节点多了，存起来
-                        {
-                            count = pmark[route - 1]->count;
-                        }
-
-                        if(j == dst_node)//路径到达目的地,代价小则保存，到达即删掉
-                        {
-                            if(pmark[route - 1]->count == demand_node_num && pmark[route - 1]->price < minPath.price)
-                            {
-                                minPath = *pmark[route - 1];
-                                return minPath;
-                            }
-                            free(pmark[route - 1]);
-                            route--;
-                            continue;
-                        }
-                    }
-                }
-            }
-            //删除此次父节点
-            pmarktmp = pmark[route -1];
-            pmark[route -1] = pmark[k];
-            pmark[k] = pmarktmp;
-            free(pmark[route -1]);
-            route--;
-        }
-        //cout<<"route :"<<route<<endl;
-        arryPath_2(pmark,&route,count);//删除必经节点少的点
-    }
-
-    for(i=0;i<route;i++)
-    {
-        free(pmark[i]);
-    }
-
-    free(pmark);
-
-    return minPath;
-}
-
-MARK BFS11()
-{
-	int i = 0,j = 0;                              // 标记
-	int k = 0;
-	int iPrice = 0;
-    pMARK *pmark= (pMARK*)malloc(sizeof(pMARK)*2000000);
-    pMARK pmarktmp = NULL;
-    int route = 0;
-    int m = 0;
-    int count = 0;
-    MARK minPath;
-
-    minPath.price = MAXSIZE;
-
-    pmark[route++] = mark_alloc();//初始点
-
-    if(isDemand(src_node))pmark[0]->count++;
-
-    for(i = 0;i < node_num;i++)   //从第1点遍历到第Npoint点
-    {
-        m = route;
-        if(route <= 0)return minPath;
-        for(k = 0;k < (m>route?route:m);k++)
-        {
-            if(pmark[k]->price >= minPath.price || pmark[k]->count < count - 3)//如果父路径有问题,删掉
-            {
-                pmarktmp = pmark[route -1];
-                pmark[route -1] = pmark[k];
-                pmark[k] = pmarktmp;
-                free(pmark[route -1]);
-                route--;
-                continue;
-            }
-            for(j = 0;j < node_num;j++)
-            {
-                if( (iPrice = GraphMatric[pmark[k]->path[pmark[k]->n-1]][j].cost) <= 20)
-                {
-                    if(!isExistNum(pmark[k]->path, pmark[k]->n, j))//发现一个新的路径
-                    {
-                        pmark[route++] = mark_alloc();//申请路径存储空间
-                        *pmark[route - 1] = *pmark[k];
-                        pmark[route - 1]->n += 1;
-                        pmark[route - 1]->path[pmark[route - 1]->n -1] = j;
-                        pmark[route - 1]->price += iPrice;
-                        //lspath( pmark[route - 1]->path, pmark[route - 1]->n);
-
-                        if(pmark[route - 1]->price >= minPath.price)//新的路径有问题,删掉
-                        {
-                            free(pmark[route - 1]);
-                            route--;
-                            continue;
-                        }
-
-                        if(isDemand(j))//是必经节点，加
-                        {
-                            pmark[route - 1]->count++;
-                        }
-
-                        if(pmark[route - 1]->count < count -2)//新的路径经过的必经节点少了,删掉
-                        {
-                            free(pmark[route - 1]);
-                            route--;
-                            continue;
-                        }
-                        else if(pmark[route - 1]->count > count )//必经节点多了，存起来
-                        {
-                            count = pmark[route - 1]->count;
-                        }
-
-                        if(j == dst_node)//路径到达目的地,代价小则保存，到达即删掉
-                        {
-                            if(pmark[route - 1]->count == demand_node_num && pmark[route - 1]->price < minPath.price)
-                            {
-                                minPath = *pmark[route - 1];
-                            }
-                            free(pmark[route - 1]);
-                            route--;
-                            continue;
-                        }
-                    }
-                }
-            }
-            //删除此次父节点
-            pmarktmp = pmark[route -1];
-            pmark[route -1] = pmark[k];
-            pmark[k] = pmarktmp;
-            free(pmark[route -1]);
-            route--;
-        }
-        //cout<<"route :"<<route<<endl;
-        arryPath_2(pmark,&route,count);//删除必经节点少的点
-    }
-
-    for(i=0;i<route;i++)
-    {
-        free(pmark[i]);
-    }
-
-    free(pmark);
-
-    return minPath;
-}
-
-MARK TBFS()
-{
-	int i = 0,j = 0;                              // 标记
-	int k = 0;
-	int iPrice = 0;
-    pMARK *pmark= (pMARK*)malloc(sizeof(pMARK)*2000000);
+    pMARK *pmark= (pMARK*)malloc(sizeof(pMARK)*1000000);
     pMARK pmarktmp = NULL;
     int route = 0;
     int m = 0;
@@ -962,8 +676,535 @@ MARK TBFS()
             free(pmark[route -1]);
             route--;
         }
-        //cout<<"route :"<<route<<endl;
         arryPath_1(pmark,&route,count);//删除必经节点少的点
+    }
+
+    for(i=0;i<route;i++)
+    {
+        free(pmark[i]);
+    }
+
+    free(pmark);
+
+    return minPath;
+}
+
+
+
+MARK BFS10()
+{
+	int i = 0,j = 0;                              // 标记
+	int k = 0;
+	int iPrice = 0;
+    pMARK *pmark= (pMARK*)malloc(sizeof(pMARK)*1000000);
+    pMARK pmarktmp = NULL;
+    int route = 0;
+    int m = 0;
+    int count = 0;
+    MARK minPath;
+
+    minPath.price = MAXSIZE;
+
+    pmark[route++] = mark_alloc();//初始点
+
+    if(isDemand(src_node))pmark[0]->count++;
+
+    for(i = 0;i < node_num;i++)   //从第1点遍历到第Npoint点
+    {
+        m = route;
+        if(route <= 0)return minPath;
+        for(k = 0;k < (m>route?route:m);k++)
+        {
+            if(pmark[k]->price >= minPath.price || pmark[k]->count < count - 1)//如果父路径有问题,删掉
+            {
+                pmarktmp = pmark[route -1];
+                pmark[route -1] = pmark[k];
+                pmark[k] = pmarktmp;
+                free(pmark[route -1]);
+                route--;
+                continue;
+            }
+            for(j = 0;j < node_num;j++)
+            {
+                if( (iPrice = GraphMatric[pmark[k]->path[pmark[k]->n-1]][j].cost) <= 20)
+                {
+                    if(!isExistNum(pmark[k]->path, pmark[k]->n, j))//发现一个新的路径
+                    {
+                        pmark[route++] = mark_alloc();//申请路径存储空间
+                        *pmark[route - 1] = *pmark[k];
+                        pmark[route - 1]->n += 1;
+                        pmark[route - 1]->path[pmark[route - 1]->n -1] = j;
+                        pmark[route - 1]->price += iPrice;
+                        //lspath( pmark[route - 1]->path, pmark[route - 1]->n);
+
+                        if(pmark[route - 1]->price >= minPath.price)//新的路径有问题,删掉
+                        {
+                            free(pmark[route - 1]);
+                            route--;
+                            continue;
+                        }
+
+                        if(isDemand(j))//是必经节点，加
+                        {
+                            pmark[route - 1]->count++;
+                        }
+
+                        if(pmark[route - 1]->count < count)//新的路径经过的必经节点少了,删掉
+                        {
+                            free(pmark[route - 1]);
+                            route--;
+                            continue;
+                        }
+                        else if(pmark[route - 1]->count > count )//必经节点多了，存起来
+                        {
+                            count = pmark[route - 1]->count;
+                        }
+
+                        if(j == dst_node)//路径到达目的地,代价小则保存，到达即删掉
+                        {
+                            if(pmark[route - 1]->count == demand_node_num && pmark[route - 1]->price < minPath.price)
+                            {
+                                minPath = *pmark[route - 1];
+                            }
+                            free(pmark[route - 1]);
+                            route--;
+                            continue;
+                        }
+                    }
+                }
+            }
+            //删除此次父节点
+            pmarktmp = pmark[route -1];
+            pmark[route -1] = pmark[k];
+            pmark[k] = pmarktmp;
+            free(pmark[route -1]);
+            route--;
+        }
+        arryPath_2(pmark,&route,count);//删除必经节点少的点
+    }
+
+    for(i=0;i<route;i++)
+    {
+        free(pmark[i]);
+    }
+
+    free(pmark);
+
+    return minPath;
+}
+
+
+MARK BFS11()
+{
+	int i = 0,j = 0;                              // 标记
+	int k = 0;
+	int iPrice = 0;
+    pMARK *pmark= (pMARK*)malloc(sizeof(pMARK)*1000000);
+    pMARK pmarktmp = NULL;
+    int route = 0;
+    int m = 0;
+    int count = 0;
+    MARK minPath;
+
+    minPath.price = MAXSIZE;
+
+    pmark[route++] = mark_alloc();//初始点
+
+    if(isDemand(src_node))pmark[0]->count++;
+
+    for(i = 0;i < node_num;i++)   //从第1点遍历到第Npoint点
+    {
+        m = route;
+        if(route <= 0)return minPath;
+        for(k = 0;k < (m>route?route:m);k++)
+        {
+            if(pmark[k]->price >= minPath.price || pmark[k]->count < count - 1)//如果父路径有问题,删掉
+            {
+                pmarktmp = pmark[route -1];
+                pmark[route -1] = pmark[k];
+                pmark[k] = pmarktmp;
+                free(pmark[route -1]);
+                route--;
+                continue;
+            }
+            for(j = 0;j < node_num;j++)
+            {
+                if( (iPrice = GraphMatric[pmark[k]->path[pmark[k]->n-1]][j].cost) <= 20)
+                {
+                    if(!isExistNum(pmark[k]->path, pmark[k]->n, j))//发现一个新的路径
+                    {
+                        pmark[route++] = mark_alloc();//申请路径存储空间
+                        *pmark[route - 1] = *pmark[k];
+                        pmark[route - 1]->n += 1;
+                        pmark[route - 1]->path[pmark[route - 1]->n -1] = j;
+                        pmark[route - 1]->price += iPrice;
+                        //lspath( pmark[route - 1]->path, pmark[route - 1]->n);
+
+                        if(pmark[route - 1]->price >= minPath.price)//新的路径有问题,删掉
+                        {
+                            free(pmark[route - 1]);
+                            route--;
+                            continue;
+                        }
+
+                        if(isDemand(j))//是必经节点，加
+                        {
+                            pmark[route - 1]->count++;
+                        }
+
+                        if(pmark[route - 1]->count < count)//新的路径经过的必经节点少了,删掉
+                        {
+                            free(pmark[route - 1]);
+                            route--;
+                            continue;
+                        }
+                        else if(pmark[route - 1]->count > count)//必经节点多了，存起来
+                        {
+                            count = pmark[route - 1]->count;
+                        }
+
+                        if(j == dst_node)//路径到达目的地,代价小则保存，到达即删掉
+                        {
+                            if(pmark[route - 1]->count == demand_node_num && pmark[route - 1]->price < minPath.price)
+                            {
+                                minPath = *pmark[route - 1];
+                            }
+                            free(pmark[route - 1]);
+                            route--;
+                            continue;
+                        }
+                    }
+                }
+            }
+            //删除此次父节点
+            pmarktmp = pmark[route -1];
+            pmark[route -1] = pmark[k];
+            pmark[k] = pmarktmp;
+            free(pmark[route -1]);
+            route--;
+        }
+        arryPath_1(pmark,&route,count);//删除必经节点少的点
+    }
+
+    for(i=0;i<route;i++)
+    {
+        free(pmark[i]);
+    }
+
+    free(pmark);
+
+    return minPath;
+}
+
+MARK BFS1213()
+{
+	int i = 0,j = 0;                              // 标记
+	int k = 0;
+	int iPrice = 0;
+    pMARK *pmark= (pMARK*)malloc(sizeof(pMARK)*1000000);
+    pMARK pmarktmp = NULL;
+    int route = 0;
+    int m = 0;
+    int count = 0;
+    MARK minPath;
+    int getCount = 0;
+
+    minPath.price = MAXSIZE;
+
+    pmark[route++] = mark_alloc();//初始点
+
+    if(isDemand(src_node))pmark[0]->count++;
+
+    for(i = 0;i < node_num;i++)   //从第1点遍历到第Npoint点
+    {
+        m = route;
+        if(route <= 0)return minPath;
+        for(k = 0;k < (m>route?route:m);k++)
+        {
+            if(pmark[k]->price >= minPath.price || pmark[k]->count < count - 2)//如果父路径有问题,删掉
+            {
+                pmarktmp = pmark[route -1];
+                pmark[route -1] = pmark[k];
+                pmark[k] = pmarktmp;
+                free(pmark[route -1]);
+                route--;
+                continue;
+            }
+            for(j = 0;j < node_num;j++)
+            {
+                if( (iPrice = GraphMatric[pmark[k]->path[pmark[k]->n-1]][j].cost) <= 20)
+                {
+                    if(!isExistNum(pmark[k]->path, pmark[k]->n, j))//发现一个新的路径
+                    {
+                        pmark[route++] = mark_alloc();//申请路径存储空间
+                        *pmark[route - 1] = *pmark[k];
+                        pmark[route - 1]->n += 1;
+                        pmark[route - 1]->path[pmark[route - 1]->n -1] = j;
+                        pmark[route - 1]->price += iPrice;
+                        //lspath( pmark[route - 1]->path, pmark[route - 1]->n);
+
+                        if(pmark[route - 1]->price >= minPath.price)//新的路径有问题,删掉
+                        {
+                            free(pmark[route - 1]);
+                            route--;
+                            continue;
+                        }
+
+                        if(isDemand(j))//是必经节点，加
+                        {
+                            pmark[route - 1]->count++;
+                        }
+
+                        if(pmark[route - 1]->count < count -1)//新的路径经过的必经节点少了,删掉
+                        {
+                            free(pmark[route - 1]);
+                            route--;
+                            continue;
+                        }
+                        else if(pmark[route - 1]->count > count )//必经节点多了，存起来
+                        {
+                            count = pmark[route - 1]->count;
+                        }
+
+                        if(j == dst_node)//路径到达目的地,代价小则保存，到达即删掉
+                        {
+                            if(pmark[route - 1]->count == demand_node_num && pmark[route - 1]->price < minPath.price)
+                            {
+                                minPath = *pmark[route - 1];
+                                getCount++;
+                                if(getCount == 8)//4 // 8 is just ok 10s
+                                {
+                                    return minPath;
+                                }
+                            }
+                            free(pmark[route - 1]);
+                            route--;
+                            continue;
+                        }
+                    }
+                }
+            }
+            //删除此次父节点
+            pmarktmp = pmark[route -1];
+            pmark[route -1] = pmark[k];
+            pmark[k] = pmarktmp;
+            free(pmark[route -1]);
+            route--;
+        }
+        //cout<<"route :"<<route<<endl;
+        arryPath_2(pmark,&route,count);//删除必经节点少的点
+    }
+
+    for(i=0;i<route;i++)
+    {
+        free(pmark[i]);
+    }
+
+    free(pmark);
+
+    return minPath;
+}
+
+
+MARK BFS14()
+{
+	int i = 0,j = 0;                              // 标记
+	int k = 0;
+	int iPrice = 0;
+    pMARK *pmark= (pMARK*)malloc(sizeof(pMARK)*1000000);
+    pMARK pmarktmp = NULL;
+    int route = 0;
+    int m = 0;
+    int count = 0;
+    MARK minPath;
+
+    minPath.price = MAXSIZE;
+
+    pmark[route++] = nmark_alloc();//初始点
+
+    if(isDemand(dst_node))pmark[0]->count++;
+
+    for(i = 0;i < node_num;i++)   //从第1点遍历到第Npoint点
+    {
+        m = route;
+        if(route <= 0)return minPath;
+        for(k = 0;k < (m>route?route:m);k++)
+        {
+            if(pmark[k]->price >= minPath.price || pmark[k]->count < count)//如果父路径有问题,删掉
+            {
+                pmarktmp = pmark[route -1];
+                pmark[route -1] = pmark[k];
+                pmark[k] = pmarktmp;
+                free(pmark[route -1]);
+                route--;
+                continue;
+            }
+            for(j = 0;j < node_num;j++)
+            {
+                if( (iPrice = GraphMatric[j][pmark[k]->path[pmark[k]->n-1]].cost) <= 20)
+                {
+                    if(!isExistNum(pmark[k]->path, pmark[k]->n, j))//发现一个新的路径
+                    {
+                        pmark[route++] = nmark_alloc();//申请路径存储空间
+                        *pmark[route - 1] = *pmark[k];
+                        pmark[route - 1]->n += 1;
+                        pmark[route - 1]->path[pmark[route - 1]->n -1] = j;
+                        pmark[route - 1]->price += iPrice;
+                        //lspath( pmark[route - 1]->path, pmark[route - 1]->n);
+
+                        if(pmark[route - 1]->price >= minPath.price)//新的路径有问题,删掉
+                        {
+                            free(pmark[route - 1]);
+                            route--;
+                            continue;
+                        }
+
+                        if(isDemand(j))//是必经节点，加
+                        {
+                            pmark[route - 1]->count++;
+                        }
+
+                        if(pmark[route - 1]->count < count)//新的路径经过的必经节点少了,删掉
+                        {
+                            free(pmark[route - 1]);
+                            route--;
+                            continue;
+                        }
+                        else if(pmark[route - 1]->count > count )//必经节点多了，存起来
+                        {
+                            count = pmark[route - 1]->count;
+                        }
+
+                        if(j == src_node)//路径到达目的地,代价小则保存，到达即删掉
+                        {
+                            if(pmark[route - 1]->count == demand_node_num && pmark[route - 1]->price <minPath.price)
+                            {
+                                minPath = *pmark[route - 1];
+                                rezerve(&minPath);
+                                return minPath;
+                            }
+                            free(pmark[route - 1]);
+                            route--;
+                            continue;
+                        }
+                    }
+                }
+            }
+            //删除此次父节点
+            pmarktmp = pmark[route -1];
+            pmark[route -1] = pmark[k];
+            pmark[k] = pmarktmp;
+            free(pmark[route -1]);
+            route--;
+        }
+        //cout<<"route :"<<route<<endl;
+        arryPath_0(pmark,&route,count);//删除必经节点少的点
+    }
+
+    for(i=0;i<route;i++)
+    {
+        free(pmark[i]);
+    }
+
+    free(pmark);
+
+    return minPath;
+}
+
+
+MARK BFS15()
+{
+	int i = 0,j = 0;                              // 标记
+	int k = 0;
+	int iPrice = 0;
+    pMARK *pmark= (pMARK*)malloc(sizeof(pMARK)*1000000);
+    pMARK pmarktmp = NULL;
+    int route = 0;
+    int m = 0;
+    int count = 0;
+    MARK minPath;
+
+    minPath.price = MAXSIZE;
+
+    pmark[route++] = nmark_alloc();//初始点
+
+    if(isDemand(dst_node))pmark[0]->count++;
+
+    for(i = 0;i < node_num;i++)   //从第1点遍历到第Npoint点
+    {
+        m = route;
+        if(route <= 0)return minPath;
+        for(k = 0;k < (m>route?route:m);k++)
+        {
+            if(pmark[k]->price >= minPath.price || pmark[k]->count < count - 3)//如果父路径有问题,删掉
+            {
+                pmarktmp = pmark[route -1];
+                pmark[route -1] = pmark[k];
+                pmark[k] = pmarktmp;
+                free(pmark[route -1]);
+                route--;
+                continue;
+            }
+            for(j = 0;j < node_num;j++)
+            {
+                if( (iPrice = GraphMatric[j][pmark[k]->path[pmark[k]->n-1]].cost) <= 20)
+                {
+                    if(!isExistNum(pmark[k]->path, pmark[k]->n, j))//发现一个新的路径
+                    {
+                        pmark[route++] = nmark_alloc();//申请路径存储空间
+                        *pmark[route - 1] = *pmark[k];
+                        pmark[route - 1]->n += 1;
+                        pmark[route - 1]->path[pmark[route - 1]->n -1] = j;
+                        pmark[route - 1]->price += iPrice;
+                        //lspath( pmark[route - 1]->path, pmark[route - 1]->n);
+
+                        if(pmark[route - 1]->price >= minPath.price)//新的路径有问题,删掉
+                        {
+                            free(pmark[route - 1]);
+                            route--;
+                            continue;
+                        }
+
+                        if(isDemand(j))//是必经节点，加
+                        {
+                            pmark[route - 1]->count++;
+                        }
+
+                        if(pmark[route - 1]->count < count - 3)//新的路径经过的必经节点少了,删掉
+                        {
+                            free(pmark[route - 1]);
+                            route--;
+                            continue;
+                        }
+                        else if(pmark[route - 1]->count > count )//必经节点多了，存起来
+                        {
+                            count = pmark[route - 1]->count;
+                        }
+
+                        if(j == src_node)//路径到达目的地,代价小则保存，到达即删掉
+                        {
+                            if(pmark[route - 1]->count == demand_node_num && pmark[route - 1]->price <minPath.price)
+                            {
+                                minPath = *pmark[route - 1];
+                                rezerve(&minPath);
+                                return minPath;
+                            }
+                            free(pmark[route - 1]);
+                            route--;
+                            continue;
+                        }
+                    }
+                }
+            }
+            //删除此次父节点
+            pmarktmp = pmark[route -1];
+            pmark[route -1] = pmark[k];
+            pmark[k] = pmarktmp;
+            free(pmark[route -1]);
+            route--;
+        }
+        //cout<<"route :"<<route<<endl;
+        arryPath_3(pmark,&route,count);//删除必经节点少的点
     }
 
     for(i=0;i<route;i++)
@@ -1040,7 +1281,7 @@ void search_route(char *topo[5000], int edge_num, char *demand)
     }
 
 
-//printf("\nnode_num: %d\tedge_num: %d\n\n", node_num,edge_num);
+printf("\nnode_num: %d\tedge_num: %d\n\n", node_num,edge_num);
 /*
     printf("src -> dst:\t%d -> %d\n", src_node,dst_node);
     printf("pass_num: %d\n", demand_node_num);
@@ -1067,15 +1308,19 @@ void search_route(char *topo[5000], int edge_num, char *demand)
     {
         minPath = BFS7();//尽力找最优
     }
-    else if(edge_num <= 1000)//8
+    else if(edge_num <= 1000)//8 ok
     {
-        minPath = TBFS();//找解
+        minPath = BFS8();//尽力找最优
     }
-    else if(edge_num <= 1500)//9-10 just ok
+    else if(edge_num <= 1100)//9 just ok
     {
-        minPath = TBFS();
+        minPath = BFS9();
     }
-    else if(edge_num <= 2000)// 12-13  just ok
+    else if(edge_num <= 1500)//10 just ok
+    {
+        minPath = BFS10();
+    }
+    else if(edge_num <= 2000)// 12-13 ok
     {
         minPath = BFS1213();
     }
@@ -1089,7 +1334,7 @@ void search_route(char *topo[5000], int edge_num, char *demand)
     }
     else//14 not ok
     {
-        minPath = TBFS();
+        minPath = BFS14();
     }
 
     //lspath(minPath.path, minPath.n);
