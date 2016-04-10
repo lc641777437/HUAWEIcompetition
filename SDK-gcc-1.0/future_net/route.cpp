@@ -1,38 +1,123 @@
-ï»¿///Cæ ‡å‡†ç±»åº“
+///C±ê×¼Àà¿â
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <malloc.h>
-#include<iostream>
-#include <fstream>
+#include <iostream>
+#include <time.h>
+#include <sys/timeb.h>
+#include <queue>
+#include <unordered_map>
+#include <unordered_set>
+#include <set>
+#include <vector>
 using namespace std;
 
-///è‡ªå®šä¹‰å¤´æ–‡ä»¶
+///×Ô¶¨ÒåÍ·ÎÄ¼ş
 #include "route.h"
 #include "lib_record.h"
 
 
-///å®šä¹‰é™åˆ¶
-#define MAX_NODE        600
+///¶¨ÒåÏŞÖÆ
+#define MAX_NODE   601
+#define MAX_NODE_NUM_1 5000
+#define MAX_NODE_NUM_2 3000
 #define MAX_DEMAND_NODE 50
 #define MAX_OUT_DEGREE  8
-#define MAXSIZE         600
+#define MAXSIZE         700
 
-//å¹¿åº¦ä¼˜å…ˆæœç´¢ç›¸å…³å®šä¹‰
+int out_node[MAX_NODE][MAX_NODE] = { 0 }; //´æ´¢I½ÚµãµÄ³ö½Úµã¡£
+bool used[MAX_NODE];   //ÅĞ¶ÏµÚi¸ö½ÚµãÊÇ·ñ±»Ê¹ÓÃ
+
+//Ê±¼ä±äÁ¿
+
+clock_t time_start;
+#define now_time (double)(clock()-time_start)/CLOCKS_PER_SEC
+
+int use_time_s = 0;
+int use_time_ms = 0;
+
+bool isVital[MAX_NODE];			//ÅĞ¶ÏµØi¸ö½ÚµãÊÇ·ñÎª±Ø¾­½Úµã
+
+int delete_num = 0;			//ÒªÉ¾³ıµÄ½ÚµãÊıÄ¿
+int delete_times = 0;		//É¾³ıµÄ´ÎÊı
+
+
+//Â·¾¶½Úµã
+struct pathNode
+{
+	int id; //µ±Ç°½ÚµãID
+	pathNode* pre; //ÉÏ¸ö½Úµã
+};
+
+//Á´±í¶ÓÁĞ½Úµã
+struct Node
+{
+	int id; //µ±Ç°½ÚµãID
+	int cost; //Ä¿Ç°µÄºÄ·Ñ
+	int count;//¾­¹ıµÄ±Ø¾­½ÚµãÊıÄ¿
+	pathNode* tail; //Â·¾¶Î²½ÚµãÖ¸Õë
+	Node* pre;//¶ÓÁĞÁ´±íÖĞµÄÉÏÒ»¸ö½Úµã
+	Node* next;//¶ÓÁĞÁ´±íÖĞµÄÏÂÒ»¸ö½Úµã
+};
+
+
+//¹ã¶ÈÓÅÏÈËÑË÷Ïà¹Ø¶¨Òå
 typedef	struct MARK
 {
-	int	price;				//è·¯å¾„ä»£ä»·
-	int n;					//è·¯å¾„æ•°ç›®ï¼Œå«å¤´å°¾
-	int count;              //è®°å½•è·¯å¾„çš„å¿…ç»èŠ‚ç‚¹ä¸ªæ•°
-	int path[MAX_NODE + 1];	//å­˜å‚¨è·¯å¾„
+	int	price;				//Â·¾¶´ú¼Û
+	int n;					//Â·¾¶ÊıÄ¿£¬º¬Í·Î²
+	int count;              //¼ÇÂ¼Â·¾¶µÄ±Ø¾­½Úµã¸öÊı
+	int path[MAX_NODE + 1];	//´æ´¢Â·¾¶
 }MARK,*pMARK;
 
-///å›¾ä¿¡æ¯å­˜å‚¨ç»“æ„ä½“
+///Í¼ĞÅÏ¢´æ´¢½á¹¹Ìå
 typedef struct DLink
 {
     int id;
     int cost;
 }DLink;
+
+
+//ÓÅÏÈ¶ÓÁĞ½Úµã
+struct queNode
+{
+	short id; //µ±Ç°½Úµãroute_id
+	short cost; //Ä¿Ç°µÄºÄ·Ñ
+	short count;//¾­¹ıµÄ±Ø¾­½ÚµãÊıÄ¿
+	vector<queNode*> path;    //Ä¬ÈÏ»á°üº¬Æğµã
+	queNode(short i) : id(i), cost(0), count(0) {};
+	queNode(short i, short c, vector<queNode*> p, short a) : id(i), cost(c), path(p), count(a) {};
+	bool inPath(short target)
+	{
+		for (queNode* i : path)
+		if (target == i->id)
+			return true;
+		return false;
+	}
+};
+
+//pqÖĞÓÅÏÈ¼¶µÄ±È½Ï
+struct Compare
+{
+	bool operator () (queNode* node1, queNode* node2)
+	{
+		if (!node1->count || !node2->count)
+		{
+			if (!node1->count)
+			{
+				return true;
+		    }
+			return false;
+		}
+		return node1->cost/node1->count > node2->cost/node2->count;
+	}
+};
+
+priority_queue<queNode*, vector<queNode*>, Compare> pq;
+priority_queue<queNode*, vector<queNode*>, Compare> tmp_pq;
+priority_queue<queNode*, vector<queNode*>, Compare> pq2;
+priority_queue<queNode*, vector<queNode*>, Compare> tmp_pq_2;
 
 DLink GraphMatric[MAX_NODE][MAX_NODE];
 
@@ -58,22 +143,7 @@ pMARK mark_alloc(void)
     return p;
 }
 
-pMARK nmark_alloc(void)
-{
-    pMARK p = (pMARK)malloc(sizeof(MARK));
-    if(!p)
-    {
-        printf("alloc failed!");
-    }
-    p->price = 0;
-    p->count = 0;
-    p->n = 1;
-    p->path[0] = dst_node;
-
-    return p;
-}
-
-//Numåœ¨æ•°ç»„arrä¸­æ˜¯å¦å­˜åœ¨
+//NumÔÚÊı×éarrÖĞÊÇ·ñ´æÔÚ
 bool isExistNum(int arr[], int n, int Num)
 {
     bool bExist = false;
@@ -108,18 +178,24 @@ void recordPath(pMARK route)
     }
 }
 
-bool isDemand(int num)
+//ÓÅÏÈ¶ÓÁĞ½Úµã³öÕ¾
+queNode* priorityPop()
 {
-    for(int i = 0;i < demand_node_num;i++)
-    {
-        if(num == demand_node[i])
-            return true;
-    }
-    return false;
+	queNode* result = pq.top();
+	pq.pop();
+	return result;
 }
 
 
-void arryPath_0(pMARK pmark[],int *route,int count)
+//ÓÅÏÈ¶ÓÁĞ½Úµã³öÕ¾
+queNode* priorityPop2()
+{
+	queNode* result = pq2.top();
+	pq2.pop();
+	return result;
+}
+
+void arryPath(pMARK pmark[],int *route,int count,int minus)
 {
 	int i = 0;
 	int routetmp = *route;
@@ -127,11 +203,11 @@ void arryPath_0(pMARK pmark[],int *route,int count)
 	int tear = -1;
     for(i = 0;i < routetmp;i++)
     {
-        if(tear == -1 )//å¯»æ‰¾ç¬¬ä¸€ä¸ªè¦èˆå¼ƒçš„è·¯å¾„
+        if(tear == -1 )//Ñ°ÕÒµÚÒ»¸öÒªÉáÆúµÄÂ·¾¶
         {
-            if(pmark[i]->count < count)
+            if(pmark[i]->count < count - minus)
             {
-                tear = i;//å®šä½ç¬¬ä¸€ä¸ªè¦èˆå¼ƒçš„è·¯å¾„
+                tear = i;//¶¨Î»µÚÒ»¸öÒªÉáÆúµÄÂ·¾¶
                 continue;
             }
             else
@@ -139,125 +215,7 @@ void arryPath_0(pMARK pmark[],int *route,int count)
                 continue;
             }
         }
-        if(pmark[i]->count >= count)
-        {
-            pmarktmp = pmark[tear];
-            pmark[tear] = pmark[i];
-            pmark[i] = pmarktmp;
-            tear++;
-        }
-    }
-
-    if(tear != -1)
-    {
-        for(i = tear;i < *route;i++)
-        {
-            free(pmark[i]);
-        }
-        *route = tear;
-    }
-}
-
-void arryPath_1(pMARK pmark[],int *route,int count)
-{
-	int i = 0;
-	int routetmp = *route;
-	pMARK pmarktmp = NULL;
-	int tear = -1;
-    for(i = 0;i < routetmp;i++)
-    {
-        if(tear == -1 )//å¯»æ‰¾ç¬¬ä¸€ä¸ªè¦èˆå¼ƒçš„è·¯å¾„
-        {
-            if(pmark[i]->count < count - 1)
-            {
-                tear = i;//å®šä½ç¬¬ä¸€ä¸ªè¦èˆå¼ƒçš„è·¯å¾„
-                continue;
-            }
-            else
-            {
-                continue;
-            }
-        }
-        if(pmark[i]->count >= count - 1)
-        {
-            pmarktmp = pmark[tear];
-            pmark[tear] = pmark[i];
-            pmark[i] = pmarktmp;
-            tear++;
-        }
-    }
-
-    if(tear != -1)
-    {
-        for(i = tear;i < *route;i++)
-        {
-            free(pmark[i]);
-        }
-        *route = tear;
-    }
-}
-
-
-void arryPath_2(pMARK pmark[],int *route,int count)
-{
-	int i = 0;
-	int routetmp = *route;
-	pMARK pmarktmp = NULL;
-	int tear = -1;
-    for(i = 0;i < routetmp;i++)
-    {
-        if(tear == -1 )//å¯»æ‰¾ç¬¬ä¸€ä¸ªè¦èˆå¼ƒçš„è·¯å¾„
-        {
-            if(pmark[i]->count < count - 2)
-            {
-                tear = i;//å®šä½ç¬¬ä¸€ä¸ªè¦èˆå¼ƒçš„è·¯å¾„
-                continue;
-            }
-            else
-            {
-                continue;
-            }
-        }
-        if(pmark[i]->count >= count - 2)
-        {
-            pmarktmp = pmark[tear];
-            pmark[tear] = pmark[i];
-            pmark[i] = pmarktmp;
-            tear++;
-        }
-    }
-
-    if(tear != -1)
-    {
-        for(i = tear;i < *route;i++)
-        {
-            free(pmark[i]);
-        }
-        *route = tear;
-    }
-}
-
-void arryPath_3(pMARK pmark[],int *route,int count)
-{
-	int i = 0;
-	int routetmp = *route;
-	pMARK pmarktmp = NULL;
-	int tear = -1;
-    for(i = 0;i < routetmp;i++)
-    {
-        if(tear == -1 )//å¯»æ‰¾ç¬¬ä¸€ä¸ªè¦èˆå¼ƒçš„è·¯å¾„
-        {
-            if(pmark[i]->count < count - 3)
-            {
-                tear = i;//å®šä½ç¬¬ä¸€ä¸ªè¦èˆå¼ƒçš„è·¯å¾„
-                continue;
-            }
-            else
-            {
-                continue;
-            }
-        }
-        if(pmark[i]->count >= count - 3)
+        if(pmark[i]->count >= count - minus)
         {
             pmarktmp = pmark[tear];
             pmark[tear] = pmark[i];
@@ -288,9 +246,65 @@ int rezerve(pMARK p)
     return 0;
 }
 
-MARK BFS1_6()
+/*
+bfs£¬²é¿´µ±Ç°½ÚµãÊÇ·ñÒÑ¾­±»Ê¹ÓÃ
+*/
+bool check_used(pathNode* tal, int id)
 {
-	int i = 0,j = 0;                              // æ ‡è®°
+	while (tal->pre != NULL)
+	{
+		if (tal->id == id)
+		    return false;
+		tal = tal->pre;
+	}
+	return true;
+}
+
+/*
+ÒÑ¾­ÓĞ½âÔò´æ´¢¸Ã½â
+*/
+MARK saveResult11(pathNode* tal)
+{
+	int i;
+	MARK minPath;
+	int Path[MAX_NODE] = { 0 };//Â·¾¶½ÚµãÊı×é
+
+	minPath.n = 1;
+	Path[0] = dst_node;
+	while (tal->pre != NULL)
+	{
+		Path[minPath.n++] = tal->id;
+		tal = tal->pre;
+	}
+	Path[minPath.n++] = src_node;
+	for (i = 0; i < minPath.n; i++)
+	{
+		minPath.path[i] = Path[minPath.n - i - 1];
+	}
+	return minPath;
+}
+/*
+ÒÑ¾­ÓĞ½âÔò´æ´¢¸Ã½â
+*/
+MARK saveResult(vector<queNode*> path)
+{
+    MARK minPath;
+    minPath.n = 0;
+	for (queNode* n : path)
+	{
+		minPath.path[minPath.n++] = n->id;
+		if(isVital[minPath.path[minPath.n -1]]) minPath.count++;
+	}
+    minPath.path[minPath.n++] = dst_node;
+    if(isVital[minPath.path[minPath.n -1]]) minPath.count++;
+
+	return minPath;
+}
+
+
+MARK Matrix_BFS(int cut1, int cut2, int cut3, bool state)
+{
+	int i = 0,j = 0;                              // ±ê¼Ç
 	int k = 0;
 	int iPrice = 0;
     pMARK *pmark= (pMARK*)malloc(sizeof(pMARK)*1000000);
@@ -302,17 +316,17 @@ MARK BFS1_6()
 
     minPath.price = MAXSIZE;
 
-    pmark[route++] = mark_alloc();//åˆå§‹ç‚¹
+    pmark[route++] = mark_alloc();//³õÊ¼µã
 
-    if(isDemand(src_node))pmark[0]->count++;
+    if(isVital[src_node])pmark[0]->count++;
 
-    for(i = 0;i < node_num;i++)   //ä»ç¬¬1ç‚¹éå†åˆ°ç¬¬Npointç‚¹
+    for(i = 0;i < node_num;i++)   //´ÓµÚ1µã±éÀúµ½µÚNpointµã
     {
         m = route;
         if(route <= 0)return minPath;
         for(k = 0;k < (m>route?route:m);k++)
         {
-            if(pmark[k]->price >= minPath.price || pmark[k]->count < count - 4)//å¦‚æœçˆ¶è·¯å¾„æœ‰é—®é¢˜,åˆ æ‰
+            if(pmark[k]->price >= minPath.price || pmark[k]->count < count - cut1)//Èç¹û¸¸Â·¾¶ÓĞÎÊÌâ,É¾µô
             {
                 pmarktmp = pmark[route -1];
                 pmark[route -1] = pmark[k];
@@ -325,42 +339,43 @@ MARK BFS1_6()
             {
                 if( (iPrice = GraphMatric[pmark[k]->path[pmark[k]->n-1]][j].cost) <= 20)
                 {
-                    if(!isExistNum(pmark[k]->path, pmark[k]->n, j))//å‘ç°ä¸€ä¸ªæ–°çš„è·¯å¾„
+                    if(!isExistNum(pmark[k]->path, pmark[k]->n, j))//·¢ÏÖÒ»¸öĞÂµÄÂ·¾¶
                     {
-                        pmark[route++] = mark_alloc();//ç”³è¯·è·¯å¾„å­˜å‚¨ç©ºé—´
+                        pmark[route++] = mark_alloc();//ÉêÇëÂ·¾¶´æ´¢¿Õ¼ä
                         *pmark[route - 1] = *pmark[k];
                         pmark[route - 1]->n += 1;
                         pmark[route - 1]->path[pmark[route - 1]->n -1] = j;
                         pmark[route - 1]->price += iPrice;
                         //lspath( pmark[route - 1]->path, pmark[route - 1]->n);
 
-                        if(pmark[route - 1]->price >= minPath.price)//æ–°çš„è·¯å¾„æœ‰é—®é¢˜,åˆ æ‰
+                        if(pmark[route - 1]->price >= minPath.price)//ĞÂµÄÂ·¾¶ÓĞÎÊÌâ,É¾µô
                         {
                             free(pmark[route - 1]);
                             route--;
                             continue;
                         }
-                        if(isDemand(j))
+                        if(isVital[j])
                         {
                             pmark[route - 1]->count++;
                         }
 
-                        if(pmark[route - 1]->count < count - 3)//æ–°çš„è·¯å¾„ç»è¿‡çš„å¿…ç»èŠ‚ç‚¹å°‘äº†,åˆ æ‰
+                        if(pmark[route - 1]->count < count - cut2)//ĞÂµÄÂ·¾¶¾­¹ıµÄ±Ø¾­½ÚµãÉÙÁË,É¾µô
                         {
                             free(pmark[route - 1]);
                             route--;
                             continue;
                         }
-                        else if(pmark[route - 1]->count > count)//å¿…ç»èŠ‚ç‚¹å¤šäº†ï¼Œå­˜èµ·æ¥
+                        else if(pmark[route - 1]->count > count)//±Ø¾­½Úµã¶àÁË£¬´æÆğÀ´
                         {
                             count = pmark[route - 1]->count;
                         }
 
-                        if(j == dst_node)//è·¯å¾„åˆ°è¾¾ç›®çš„åœ°,ä»£ä»·å°åˆ™ä¿å­˜ï¼Œåˆ°è¾¾å³åˆ æ‰
+                        if(j == dst_node)//Â·¾¶µ½´ïÄ¿µÄµØ,´ú¼ÛĞ¡Ôò±£´æ£¬µ½´ï¼´É¾µô
                         {
                             if(pmark[route - 1]->count == demand_node_num && pmark[route - 1]->price < minPath.price)
                             {
                                 minPath = *pmark[route - 1];
+                                if(state)return minPath;
                             }
                             free(pmark[route - 1]);
                             route--;
@@ -369,14 +384,14 @@ MARK BFS1_6()
                     }
                 }
             }
-            //åˆ é™¤æ­¤æ¬¡çˆ¶èŠ‚ç‚¹
+            //É¾³ı´Ë´Î¸¸½Úµã
             pmarktmp = pmark[route -1];
             pmark[route -1] = pmark[k];
             pmark[k] = pmarktmp;
             free(pmark[route -1]);
             route--;
         }
-        arryPath_3(pmark,&route,count);//åˆ é™¤å¿…ç»èŠ‚ç‚¹å°‘çš„ç‚¹
+        arryPath(pmark,&route,count,cut3);//É¾³ı±Ø¾­½ÚµãÉÙµÄµã
     }
 
     for(i=0;i<route;i++)
@@ -388,517 +403,125 @@ MARK BFS1_6()
     return minPath;
 }
 
-
-MARK BFS7()
+/*
+ÕıÏò½ÚµãÓÅÏÈ¿í¶ÈÓÅÏÈËÑË÷
+*/
+MARK Chain_BFS()
 {
-	int i = 0,j = 0;                              // æ ‡è®°
-	int k = 0;
-	int iPrice = 0;
-    pMARK *pmark= (pMARK*)malloc(sizeof(pMARK)*1000000);
-    pMARK pmarktmp = NULL;
-    int route = 0;
-    int m = 0;
-    int count = 0;
+	int i,j;
+	int icost, now_id, next_id;
+	Node* now;
+	Node* next;
+	Node* tmp;
+	pathNode* Nodetmp;
+	int qLen = 0; //¶ÓÁĞ³¤¶È
+    Node* head;//¶ÓÁĞÍ·½áµã
+    Node* tail;//¶ÓÁĞÎ²½Úµã
     MARK minPath;
+
+    for (i = MAX_NODE - 1; i >= 0; i--)
+	{
+    	for (j = MAX_NODE - 1; j >= 0; j--)
+    	{
+    		if (GraphMatric[i][j].cost <= 20)
+    		{
+    			out_node[i][0]++;
+    			out_node[i][out_node[i][0]] = j;
+    		}
+    	}
+    }
 
     minPath.price = MAXSIZE;
 
-    pmark[route++] = mark_alloc();//åˆå§‹ç‚¹
+	head = (Node *)malloc(sizeof(Node));
+	Nodetmp = (pathNode *)malloc(sizeof(pathNode));
 
-    if(isDemand(src_node))pmark[0]->count++;
+	Nodetmp->id = src_node;
+	Nodetmp->pre = NULL;
 
-    for(i = 0;i < node_num;i++)   //ä»ç¬¬1ç‚¹éå†åˆ°ç¬¬Npointç‚¹
-    {
-        m = route;
-        if(route <= 0)return minPath;
-        for(k = 0;k < (m>route?route:m);k++)
-        {
-            if(pmark[k]->price >= minPath.price || pmark[k]->count < count - 4)//å¦‚æœçˆ¶è·¯å¾„æœ‰é—®é¢˜,åˆ æ‰
-            {
-                pmarktmp = pmark[route -1];
-                pmark[route -1] = pmark[k];
-                pmark[k] = pmarktmp;
-                free(pmark[route -1]);
-                route--;
-                continue;
-            }
-            for(j = 0;j < node_num;j++)
-            {
-                if( (iPrice = GraphMatric[pmark[k]->path[pmark[k]->n-1]][j].cost) <= 20)
-                {
-                    if(!isExistNum(pmark[k]->path, pmark[k]->n, j))//å‘ç°ä¸€ä¸ªæ–°çš„è·¯å¾„
-                    {
-                        pmark[route++] = mark_alloc();//ç”³è¯·è·¯å¾„å­˜å‚¨ç©ºé—´
-                        *pmark[route - 1] = *pmark[k];
-                        pmark[route - 1]->n += 1;
-                        pmark[route - 1]->path[pmark[route - 1]->n -1] = j;
-                        pmark[route - 1]->price += iPrice;
-                        if(pmark[route - 1]->price >= minPath.price)//æ–°çš„è·¯å¾„æœ‰é—®é¢˜,åˆ æ‰
-                        {
-                            free(pmark[route - 1]);
-                            route--;
-                            continue;
-                        }
-                        if(isDemand(j))
-                        {
-                            pmark[route - 1]->count++;
-                        }
+	head->id = src_node;
+	head->next = NULL;
+	head->pre = NULL;
+	head->tail = Nodetmp;
+	head->cost = 0;
+	head->count = 0;
 
-                        if(pmark[route - 1]->count < count - 2)//æ–°çš„è·¯å¾„ç»è¿‡çš„å¿…ç»èŠ‚ç‚¹å°‘äº†,åˆ æ‰
-                        {
-                            free(pmark[route - 1]);
-                            route--;
-                            continue;
-                        }
-                        else if(pmark[route - 1]->count > count)//å¿…ç»èŠ‚ç‚¹å¤šäº†ï¼Œå­˜èµ·æ¥
-                        {
-                            count = pmark[route - 1]->count;
-                        }
+	tail = head;
+	qLen = 1;
 
-                        if(j == dst_node)//è·¯å¾„åˆ°è¾¾ç›®çš„åœ°,ä»£ä»·å°åˆ™ä¿å­˜ï¼Œåˆ°è¾¾å³åˆ æ‰
-                        {
-                            if(pmark[route - 1]->count == demand_node_num && pmark[route - 1]->price < minPath.price)
-                            {
-                                minPath = *pmark[route - 1];
-                            }
-                            free(pmark[route - 1]);
-                            route--;
-                            continue;
-                        }
-                    }
-                }
-            }
-            //åˆ é™¤æ­¤æ¬¡çˆ¶èŠ‚ç‚¹
-            pmarktmp = pmark[route -1];
-            pmark[route -1] = pmark[k];
-            pmark[k] = pmarktmp;
-            free(pmark[route -1]);
-            route--;
+	while (qLen >= 1)
+	{
+		if (now_time >= 9.8)
+		{
+			return minPath;
         }
-        arryPath_3(pmark,&route,count);//åˆ é™¤å¿…ç»èŠ‚ç‚¹å°‘çš„ç‚¹
-    }
-    for(i=0;i<route;i++)
-    {
-        free(pmark[i]);
-    }
-    free(pmark);
-    return minPath;
-}
+		now = head;
+		now_id = now->id;
+		for (i = 1; i <= out_node[now_id][0]; i++)
+		{
+			next_id = out_node[now_id][i];
+			icost = now->cost + GraphMatric[now_id][next_id].cost;
+			if (icost >= minPath.price)
+			{
+				continue;
+			}
+			if (next_id == dst_node)
+			{
+				if (now->count == demand_node_num)
+				{
+					minPath.price = icost;
+					minPath = saveResult11(now->tail);
+				}
+				else
+				    continue;
+			}
+			else if (check_used(now->tail, next_id))
+			{
+				next = (Node *)malloc(sizeof(Node));
+				Nodetmp = (pathNode *)malloc(sizeof(pathNode));
+				Nodetmp->id = next_id;
+				Nodetmp->pre = now->tail;
+				next->id = next_id;
+				next->next = NULL;
+				next->pre = NULL;
+				next->tail = Nodetmp;
+				next->cost = icost;
+				next->count = now->count;
+				if (isVital[next_id])
+				{
+					next->count = now->count + 1;
+				}
+				tmp = head->next;
+				while (tmp != NULL && tmp->count >= next->count)
+				{ //µ½Î²ÁË»òÕßËµ¾­¹ı½Úµã½Úµã±ÈËûÉÙ£¬Ôò²åÔÚÇ°Ãæ
+					tmp = tmp->next;
+				}
+				if (tmp == NULL)
+				{ //µ½ÁËÎ²²¿
+					tail->next = next;
+					next->pre = tail;
+					tail = next;
+				}
+				else
+				{ //²åÔÚtmpÇ°Ãæ
+					next->pre = tmp->pre;
+					next->next = tmp;
+					tmp->pre->next = next;
+					tmp->pre = next;
+				}
+				qLen++;
+			}
+		}
+		qLen--;
+		head = head->next;
+	}
 
-MARK BFS8()
-{
-	int i = 0,j = 0;                              // æ ‡è®°
-	int k = 0;
-	int iPrice = 0;
-    pMARK *pmark= (pMARK*)malloc(sizeof(pMARK)*1000000);
-    pMARK pmarktmp = NULL;
-    int route = 0;
-    int m = 0;
-    int count = 0;
-    MARK minPath;
-
-    minPath.price = MAXSIZE;
-
-    pmark[route++] = mark_alloc();//åˆå§‹ç‚¹
-
-    if(isDemand(src_node))pmark[0]->count++;
-
-    for(i = 0;i < node_num;i++)   //ä»ç¬¬1ç‚¹éå†åˆ°ç¬¬Npointç‚¹
-    {
-        m = route;
-        if(route <= 0)return minPath;
-        for(k = 0;k < (m>route?route:m);k++)
-        {
-            if(pmark[k]->price >= minPath.price || pmark[k]->count < count - 2)//å¦‚æœçˆ¶è·¯å¾„æœ‰é—®é¢˜,åˆ æ‰
-            {
-                pmarktmp = pmark[route -1];
-                pmark[route -1] = pmark[k];
-                pmark[k] = pmarktmp;
-                free(pmark[route -1]);
-                route--;
-                continue;
-            }
-            for(j = 0;j < node_num;j++)
-            {
-                if( (iPrice = GraphMatric[pmark[k]->path[pmark[k]->n-1]][j].cost) <= 20)
-                {
-                    if(!isExistNum(pmark[k]->path, pmark[k]->n, j))//å‘ç°ä¸€ä¸ªæ–°çš„è·¯å¾„
-                    {
-                        pmark[route++] = mark_alloc();//ç”³è¯·è·¯å¾„å­˜å‚¨ç©ºé—´
-                        *pmark[route - 1] = *pmark[k];
-                        pmark[route - 1]->n += 1;
-                        pmark[route - 1]->path[pmark[route - 1]->n -1] = j;
-                        pmark[route - 1]->price += iPrice;
-                        //lspath( pmark[route - 1]->path, pmark[route - 1]->n);
-
-                        if(pmark[route - 1]->price >= minPath.price)//æ–°çš„è·¯å¾„æœ‰é—®é¢˜,åˆ æ‰
-                        {
-                            free(pmark[route - 1]);
-                            route--;
-                            continue;
-                        }
-                        if(isDemand(j))
-                        {
-                            pmark[route - 1]->count++;
-                        }
-
-                        if(pmark[route - 1]->count < count - 2)//æ–°çš„è·¯å¾„ç»è¿‡çš„å¿…ç»èŠ‚ç‚¹å°‘äº†,åˆ æ‰
-                        {
-                            free(pmark[route - 1]);
-                            route--;
-                            continue;
-                        }
-                        else if(pmark[route - 1]->count > count)//å¿…ç»èŠ‚ç‚¹å¤šäº†ï¼Œå­˜èµ·æ¥
-                        {
-                            count = pmark[route - 1]->count;
-                        }
-
-                        if(j == dst_node)//è·¯å¾„åˆ°è¾¾ç›®çš„åœ°,ä»£ä»·å°åˆ™ä¿å­˜ï¼Œåˆ°è¾¾å³åˆ æ‰
-                        {
-                            if(pmark[route - 1]->count == demand_node_num && pmark[route - 1]->price < minPath.price)
-                            {
-                                minPath = *pmark[route - 1];
-                            }
-                            free(pmark[route - 1]);
-                            route--;
-                            continue;
-                        }
-                    }
-                }
-            }
-            //åˆ é™¤æ­¤æ¬¡çˆ¶èŠ‚ç‚¹
-            pmarktmp = pmark[route -1];
-            pmark[route -1] = pmark[k];
-            pmark[k] = pmarktmp;
-            free(pmark[route -1]);
-            route--;
-        }
-        //cout<<"route :"<<route<<endl;
-        arryPath_1(pmark,&route,count);//åˆ é™¤å¿…ç»èŠ‚ç‚¹å°‘çš„ç‚¹
-    }
-
-    for(i=0;i<route;i++)
-    {
-        free(pmark[i]);
-    }
-    free(pmark);
-
-    return minPath;
-}
-
-
-MARK BFS9()
-{
-	int i = 0,j = 0;                              // æ ‡è®°
-	int k = 0;
-	int iPrice = 0;
-    pMARK *pmark= (pMARK*)malloc(sizeof(pMARK)*1000000);
-    pMARK pmarktmp = NULL;
-    int route = 0;
-    int m = 0;
-    int count = 0;
-    MARK minPath;
-
-    minPath.price = MAXSIZE;
-
-    pmark[route++] = mark_alloc();//åˆå§‹ç‚¹
-
-    if(isDemand(src_node))pmark[0]->count++;
-
-    for(i = 0;i < node_num;i++)   //ä»ç¬¬1ç‚¹éå†åˆ°ç¬¬Npointç‚¹
-    {
-        m = route;
-        if(route <= 0)return minPath;
-        for(k = 0;k < (m>route?route:m);k++)
-        {
-            if(pmark[k]->price >= minPath.price || pmark[k]->count < count - 1)//å¦‚æœçˆ¶è·¯å¾„æœ‰é—®é¢˜,åˆ æ‰
-            {
-                pmarktmp = pmark[route -1];
-                pmark[route -1] = pmark[k];
-                pmark[k] = pmarktmp;
-                free(pmark[route -1]);
-                route--;
-                continue;
-            }
-            for(j = 0;j < node_num;j++)
-            {
-                if( (iPrice = GraphMatric[pmark[k]->path[pmark[k]->n-1]][j].cost) <= 20)
-                {
-                    if(!isExistNum(pmark[k]->path, pmark[k]->n, j))//å‘ç°ä¸€ä¸ªæ–°çš„è·¯å¾„
-                    {
-                        pmark[route++] = mark_alloc();//ç”³è¯·è·¯å¾„å­˜å‚¨ç©ºé—´
-                        *pmark[route - 1] = *pmark[k];
-                        pmark[route - 1]->n += 1;
-                        pmark[route - 1]->path[pmark[route - 1]->n -1] = j;
-                        pmark[route - 1]->price += iPrice;
-                        //lspath( pmark[route - 1]->path, pmark[route - 1]->n);
-
-                        if(pmark[route - 1]->price >= minPath.price)//æ–°çš„è·¯å¾„æœ‰é—®é¢˜,åˆ æ‰
-                        {
-                            free(pmark[route - 1]);
-                            route--;
-                            continue;
-                        }
-
-                        if(isDemand(j))//æ˜¯å¿…ç»èŠ‚ç‚¹ï¼ŒåŠ 
-                        {
-                            pmark[route - 1]->count++;
-                        }
-
-                        if(pmark[route - 1]->count < count)//æ–°çš„è·¯å¾„ç»è¿‡çš„å¿…ç»èŠ‚ç‚¹å°‘äº†,åˆ æ‰
-                        {
-                            free(pmark[route - 1]);
-                            route--;
-                            continue;
-                        }
-                        else if(pmark[route - 1]->count > count )//å¿…ç»èŠ‚ç‚¹å¤šäº†ï¼Œå­˜èµ·æ¥
-                        {
-                            count = pmark[route - 1]->count;
-                        }
-
-                        if(j == dst_node)//è·¯å¾„åˆ°è¾¾ç›®çš„åœ°,ä»£ä»·å°åˆ™ä¿å­˜ï¼Œåˆ°è¾¾å³åˆ æ‰
-                        {
-                            if(pmark[route - 1]->count == demand_node_num && pmark[route - 1]->price < minPath.price)
-                            {
-                                minPath = *pmark[route - 1];
-                            }
-                            free(pmark[route - 1]);
-                            route--;
-                            continue;
-                        }
-                    }
-                }
-            }
-            //åˆ é™¤æ­¤æ¬¡çˆ¶èŠ‚ç‚¹
-            pmarktmp = pmark[route -1];
-            pmark[route -1] = pmark[k];
-            pmark[k] = pmarktmp;
-            free(pmark[route -1]);
-            route--;
-        }
-        arryPath_1(pmark,&route,count);//åˆ é™¤å¿…ç»èŠ‚ç‚¹å°‘çš„ç‚¹
-    }
-
-    for(i=0;i<route;i++)
-    {
-        free(pmark[i]);
-    }
-
-    free(pmark);
-
-    return minPath;
-}
-
-
-
-MARK BFS10()
-{
-	int i = 0,j = 0;                              // æ ‡è®°
-	int k = 0;
-	int iPrice = 0;
-    pMARK *pmark= (pMARK*)malloc(sizeof(pMARK)*1000000);
-    pMARK pmarktmp = NULL;
-    int route = 0;
-    int m = 0;
-    int count = 0;
-    MARK minPath;
-
-    minPath.price = MAXSIZE;
-
-    pmark[route++] = mark_alloc();//åˆå§‹ç‚¹
-
-    if(isDemand(src_node))pmark[0]->count++;
-
-    for(i = 0;i < node_num;i++)   //ä»ç¬¬1ç‚¹éå†åˆ°ç¬¬Npointç‚¹
-    {
-        m = route;
-        if(route <= 0)return minPath;
-        for(k = 0;k < (m>route?route:m);k++)
-        {
-            if(pmark[k]->price >= minPath.price || pmark[k]->count < count - 1)//å¦‚æœçˆ¶è·¯å¾„æœ‰é—®é¢˜,åˆ æ‰
-            {
-                pmarktmp = pmark[route -1];
-                pmark[route -1] = pmark[k];
-                pmark[k] = pmarktmp;
-                free(pmark[route -1]);
-                route--;
-                continue;
-            }
-            for(j = 0;j < node_num;j++)
-            {
-                if( (iPrice = GraphMatric[pmark[k]->path[pmark[k]->n-1]][j].cost) <= 20)
-                {
-                    if(!isExistNum(pmark[k]->path, pmark[k]->n, j))//å‘ç°ä¸€ä¸ªæ–°çš„è·¯å¾„
-                    {
-                        pmark[route++] = mark_alloc();//ç”³è¯·è·¯å¾„å­˜å‚¨ç©ºé—´
-                        *pmark[route - 1] = *pmark[k];
-                        pmark[route - 1]->n += 1;
-                        pmark[route - 1]->path[pmark[route - 1]->n -1] = j;
-                        pmark[route - 1]->price += iPrice;
-                        //lspath( pmark[route - 1]->path, pmark[route - 1]->n);
-
-                        if(pmark[route - 1]->price >= minPath.price)//æ–°çš„è·¯å¾„æœ‰é—®é¢˜,åˆ æ‰
-                        {
-                            free(pmark[route - 1]);
-                            route--;
-                            continue;
-                        }
-
-                        if(isDemand(j))//æ˜¯å¿…ç»èŠ‚ç‚¹ï¼ŒåŠ 
-                        {
-                            pmark[route - 1]->count++;
-                        }
-
-                        if(pmark[route - 1]->count < count)//æ–°çš„è·¯å¾„ç»è¿‡çš„å¿…ç»èŠ‚ç‚¹å°‘äº†,åˆ æ‰
-                        {
-                            free(pmark[route - 1]);
-                            route--;
-                            continue;
-                        }
-                        else if(pmark[route - 1]->count > count )//å¿…ç»èŠ‚ç‚¹å¤šäº†ï¼Œå­˜èµ·æ¥
-                        {
-                            count = pmark[route - 1]->count;
-                        }
-
-                        if(j == dst_node)//è·¯å¾„åˆ°è¾¾ç›®çš„åœ°,ä»£ä»·å°åˆ™ä¿å­˜ï¼Œåˆ°è¾¾å³åˆ æ‰
-                        {
-                            if(pmark[route - 1]->count == demand_node_num && pmark[route - 1]->price < minPath.price)
-                            {
-                                minPath = *pmark[route - 1];
-                            }
-                            free(pmark[route - 1]);
-                            route--;
-                            continue;
-                        }
-                    }
-                }
-            }
-            //åˆ é™¤æ­¤æ¬¡çˆ¶èŠ‚ç‚¹
-            pmarktmp = pmark[route -1];
-            pmark[route -1] = pmark[k];
-            pmark[k] = pmarktmp;
-            free(pmark[route -1]);
-            route--;
-        }
-        arryPath_2(pmark,&route,count);//åˆ é™¤å¿…ç»èŠ‚ç‚¹å°‘çš„ç‚¹
-    }
-
-    for(i=0;i<route;i++)
-    {
-        free(pmark[i]);
-    }
-
-    free(pmark);
-
-    return minPath;
-}
-
-
-MARK BFS11()
-{
-	int i = 0,j = 0;                              // æ ‡è®°
-	int k = 0;
-	int iPrice = 0;
-    pMARK *pmark= (pMARK*)malloc(sizeof(pMARK)*1000000);
-    pMARK pmarktmp = NULL;
-    int route = 0;
-    int m = 0;
-    int count = 0;
-    MARK minPath;
-
-    minPath.price = MAXSIZE;
-
-    pmark[route++] = mark_alloc();//åˆå§‹ç‚¹
-
-    if(isDemand(src_node))pmark[0]->count++;
-
-    for(i = 0;i < node_num;i++)   //ä»ç¬¬1ç‚¹éå†åˆ°ç¬¬Npointç‚¹
-    {
-        m = route;
-        if(route <= 0)return minPath;
-        for(k = 0;k < (m>route?route:m);k++)
-        {
-            if(pmark[k]->price >= minPath.price || pmark[k]->count < count - 1)//å¦‚æœçˆ¶è·¯å¾„æœ‰é—®é¢˜,åˆ æ‰
-            {
-                pmarktmp = pmark[route -1];
-                pmark[route -1] = pmark[k];
-                pmark[k] = pmarktmp;
-                free(pmark[route -1]);
-                route--;
-                continue;
-            }
-            for(j = 0;j < node_num;j++)
-            {
-                if( (iPrice = GraphMatric[pmark[k]->path[pmark[k]->n-1]][j].cost) <= 20)
-                {
-                    if(!isExistNum(pmark[k]->path, pmark[k]->n, j))//å‘ç°ä¸€ä¸ªæ–°çš„è·¯å¾„
-                    {
-                        pmark[route++] = mark_alloc();//ç”³è¯·è·¯å¾„å­˜å‚¨ç©ºé—´
-                        *pmark[route - 1] = *pmark[k];
-                        pmark[route - 1]->n += 1;
-                        pmark[route - 1]->path[pmark[route - 1]->n -1] = j;
-                        pmark[route - 1]->price += iPrice;
-                        //lspath( pmark[route - 1]->path, pmark[route - 1]->n);
-
-                        if(pmark[route - 1]->price >= minPath.price)//æ–°çš„è·¯å¾„æœ‰é—®é¢˜,åˆ æ‰
-                        {
-                            free(pmark[route - 1]);
-                            route--;
-                            continue;
-                        }
-
-                        if(isDemand(j))//æ˜¯å¿…ç»èŠ‚ç‚¹ï¼ŒåŠ 
-                        {
-                            pmark[route - 1]->count++;
-                        }
-
-                        if(pmark[route - 1]->count < count)//æ–°çš„è·¯å¾„ç»è¿‡çš„å¿…ç»èŠ‚ç‚¹å°‘äº†,åˆ æ‰
-                        {
-                            free(pmark[route - 1]);
-                            route--;
-                            continue;
-                        }
-                        else if(pmark[route - 1]->count > count)//å¿…ç»èŠ‚ç‚¹å¤šäº†ï¼Œå­˜èµ·æ¥
-                        {
-                            count = pmark[route - 1]->count;
-                        }
-
-                        if(j == dst_node)//è·¯å¾„åˆ°è¾¾ç›®çš„åœ°,ä»£ä»·å°åˆ™ä¿å­˜ï¼Œåˆ°è¾¾å³åˆ æ‰
-                        {
-                            if(pmark[route - 1]->count == demand_node_num && pmark[route - 1]->price < minPath.price)
-                            {
-                                minPath = *pmark[route - 1];
-                            }
-                            free(pmark[route - 1]);
-                            route--;
-                            continue;
-                        }
-                    }
-                }
-            }
-            //åˆ é™¤æ­¤æ¬¡çˆ¶èŠ‚ç‚¹
-            pmarktmp = pmark[route -1];
-            pmark[route -1] = pmark[k];
-            pmark[k] = pmarktmp;
-            free(pmark[route -1]);
-            route--;
-        }
-        arryPath_1(pmark,&route,count);//åˆ é™¤å¿…ç»èŠ‚ç‚¹å°‘çš„ç‚¹
-    }
-
-    for(i=0;i<route;i++)
-    {
-        free(pmark[i]);
-    }
-
-    free(pmark);
-
-    return minPath;
+	return minPath;
 }
 
 MARK BFS1213()
 {
-	int i = 0,j = 0;                              // æ ‡è®°
+	int i = 0,j = 0;                              // ±ê¼Ç
 	int k = 0;
 	int iPrice = 0;
     pMARK *pmark= (pMARK*)malloc(sizeof(pMARK)*1000000);
@@ -911,17 +534,17 @@ MARK BFS1213()
 
     minPath.price = MAXSIZE;
 
-    pmark[route++] = mark_alloc();//åˆå§‹ç‚¹
+    pmark[route++] = mark_alloc();//³õÊ¼µã
 
-    if(isDemand(src_node))pmark[0]->count++;
+    if(isVital[src_node])pmark[0]->count++;
 
-    for(i = 0;i < node_num;i++)   //ä»ç¬¬1ç‚¹éå†åˆ°ç¬¬Npointç‚¹
+    for(i = 0;i < node_num;i++)   //´ÓµÚ1µã±éÀúµ½µÚNpointµã
     {
         m = route;
         if(route <= 0)return minPath;
         for(k = 0;k < (m>route?route:m);k++)
         {
-            if(pmark[k]->price >= minPath.price || pmark[k]->count < count - 2)//å¦‚æœçˆ¶è·¯å¾„æœ‰é—®é¢˜,åˆ æ‰
+            if(pmark[k]->price >= minPath.price || pmark[k]->count < count - 2)//Èç¹û¸¸Â·¾¶ÓĞÎÊÌâ,É¾µô
             {
                 pmarktmp = pmark[route -1];
                 pmark[route -1] = pmark[k];
@@ -934,39 +557,39 @@ MARK BFS1213()
             {
                 if( (iPrice = GraphMatric[pmark[k]->path[pmark[k]->n-1]][j].cost) <= 20)
                 {
-                    if(!isExistNum(pmark[k]->path, pmark[k]->n, j))//å‘ç°ä¸€ä¸ªæ–°çš„è·¯å¾„
+                    if(!isExistNum(pmark[k]->path, pmark[k]->n, j))//·¢ÏÖÒ»¸öĞÂµÄÂ·¾¶
                     {
-                        pmark[route++] = mark_alloc();//ç”³è¯·è·¯å¾„å­˜å‚¨ç©ºé—´
+                        pmark[route++] = mark_alloc();//ÉêÇëÂ·¾¶´æ´¢¿Õ¼ä
                         *pmark[route - 1] = *pmark[k];
                         pmark[route - 1]->n += 1;
                         pmark[route - 1]->path[pmark[route - 1]->n -1] = j;
                         pmark[route - 1]->price += iPrice;
                         //lspath( pmark[route - 1]->path, pmark[route - 1]->n);
 
-                        if(pmark[route - 1]->price >= minPath.price)//æ–°çš„è·¯å¾„æœ‰é—®é¢˜,åˆ æ‰
+                        if(pmark[route - 1]->price >= minPath.price)//ĞÂµÄÂ·¾¶ÓĞÎÊÌâ,É¾µô
                         {
                             free(pmark[route - 1]);
                             route--;
                             continue;
                         }
 
-                        if(isDemand(j))//æ˜¯å¿…ç»èŠ‚ç‚¹ï¼ŒåŠ 
+                        if(isVital[j])//ÊÇ±Ø¾­½Úµã£¬¼Ó
                         {
                             pmark[route - 1]->count++;
                         }
 
-                        if(pmark[route - 1]->count < count -1)//æ–°çš„è·¯å¾„ç»è¿‡çš„å¿…ç»èŠ‚ç‚¹å°‘äº†,åˆ æ‰
+                        if(pmark[route - 1]->count < count -1)//ĞÂµÄÂ·¾¶¾­¹ıµÄ±Ø¾­½ÚµãÉÙÁË,É¾µô
                         {
                             free(pmark[route - 1]);
                             route--;
                             continue;
                         }
-                        else if(pmark[route - 1]->count > count )//å¿…ç»èŠ‚ç‚¹å¤šäº†ï¼Œå­˜èµ·æ¥
+                        else if(pmark[route - 1]->count > count )//±Ø¾­½Úµã¶àÁË£¬´æÆğÀ´
                         {
                             count = pmark[route - 1]->count;
                         }
 
-                        if(j == dst_node)//è·¯å¾„åˆ°è¾¾ç›®çš„åœ°,ä»£ä»·å°åˆ™ä¿å­˜ï¼Œåˆ°è¾¾å³åˆ æ‰
+                        if(j == dst_node)//Â·¾¶µ½´ïÄ¿µÄµØ,´ú¼ÛĞ¡Ôò±£´æ£¬µ½´ï¼´É¾µô
                         {
                             if(pmark[route - 1]->count == demand_node_num && pmark[route - 1]->price < minPath.price)
                             {
@@ -984,7 +607,7 @@ MARK BFS1213()
                     }
                 }
             }
-            //åˆ é™¤æ­¤æ¬¡çˆ¶èŠ‚ç‚¹
+            //É¾³ı´Ë´Î¸¸½Úµã
             pmarktmp = pmark[route -1];
             pmark[route -1] = pmark[k];
             pmark[k] = pmarktmp;
@@ -992,7 +615,7 @@ MARK BFS1213()
             route--;
         }
         //cout<<"route :"<<route<<endl;
-        arryPath_2(pmark,&route,count);//åˆ é™¤å¿…ç»èŠ‚ç‚¹å°‘çš„ç‚¹
+        arryPath(pmark,&route,count,2);//É¾³ı±Ø¾­½ÚµãÉÙµÄµã
     }
 
     for(i=0;i<route;i++)
@@ -1005,218 +628,234 @@ MARK BFS1213()
     return minPath;
 }
 
+/*
+	ÖĞ¼ä½ÚµãÕıÏòĞÔ¼Û±È¿í¶ÈÓÅÏÈËÑË÷µÚ¶ş½×¶Î
+*/
+MARK BFS1415_B(int dst_mid, queNode* endNode)
+{
+	int i;
+	int tmp_cost, now_id, next_id;
+	int tmpTarget = dst_mid;
+	MARK minPath;
+    minPath.price = 700;
+    minPath.n = 0;
+	queNode* now = new queNode(src_node);
+	now->path.push_back(now); //³õÊ¼½Úµã
+	pq2.push(now);              //³õÊ¼½Úµã½øÈë¶ÓÁĞ
+	while (!pq2.empty())
+	{
+		if (now_time >= 9.8)
+		{
+		    minPath.n = 0;
+			return minPath;
+		}
+		now = priorityPop2();
+		now_id = now->id;
+		for (i = 1; i <= out_node[now_id][0]; i++)
+		{
+			next_id = out_node[now_id][i];
+			if ((next_id == dst_node || endNode->inPath(next_id)) && next_id != tmpTarget)
+			    continue;
+			tmp_cost = now->cost + GraphMatric[now_id][next_id].cost;
+			if (next_id == tmpTarget)
+			{
+				minPath.price = tmp_cost;
+				for (queNode* n : endNode->path)
+				{
+					now->path.push_back(n);
+				}
+				minPath = saveResult(now->path);
+				return minPath;
+			}
+			else if (!now->inPath(next_id))
+			{
+				queNode * next = new queNode(next_id, tmp_cost, now->path, isVital[next_id] ? now->count + 1 : now->count);
+				next->path.push_back(next);
+				pq2.push(next);
+				if (pq2.size() > MAX_NODE_NUM_1)
+				{
+					if (MAX_NODE_NUM_1 >= delete_times)
+						delete_num = MAX_NODE_NUM_1 - delete_times;
+					else
+						delete_num = 1;
+					delete_times += 5;
+					if (delete_num < (int)pq2.size())
+					{
+						queNode * node;
+						while (delete_num>0)
+						{
+							node = priorityPop2();
+							tmp_pq_2.push(node);
+							delete_num--;
+						}
+						while (pq2.size()>0)
+						{
+							node = priorityPop2();
+							delete node;
+						}
+						while (tmp_pq_2.size() > 0)
+						{
+							node = tmp_pq_2.top();
+							tmp_pq_2.pop();
+							pq2.push(node);
+						}
+					}
+				}
+			}
+		}
+	}
+	minPath.n = 0;
+	return minPath;
+}
 
+/*
+	ÖĞ¼ä½ÚµãÕıÏòĞÔ¼Û±È¿í¶ÈÓÅÏÈËÑË÷µÚÒ»½×¶Î
+*/
+MARK BFS1415_F(int dst_mid)
+{
+	int i;
+	int tmp_cost, now_id, next_id;
+	MARK minPath;
+    minPath.price = 700;
+	queNode* now = new queNode(dst_mid);
+	now->count = 1;
+	now->path.push_back(now); //³õÊ¼½Úµã
+	pq.push(now);              //³õÊ¼½Úµã½øÈë¶ÓÁĞ
+	while (!pq.empty())
+	{
+		if (now_time >= 9.5)
+		{
+		    minPath.n = 0;
+			return minPath;
+		}
+		now = priorityPop();
+		now_id = now->id;
+		for (i = 1; i <= out_node[now_id][0]; i++)
+		{
+			next_id = out_node[now_id][i];
+			tmp_cost = now->cost + GraphMatric[now_id][next_id].cost;
+			if (tmp_cost >= minPath.price)
+			{
+				continue;
+			}
+			if (next_id == dst_node)
+			{
+				if (now->count == demand_node_num)
+				{
+					minPath.price = tmp_cost;
+					minPath = BFS1415_B(dst_mid, now);
+					if (minPath.n > 0)
+					    return minPath;
+				}
+				else
+				    continue;
+			}
+			else if (!now->inPath(next_id))
+			{
+				queNode * next = new queNode(next_id, tmp_cost, now->path, isVital[next_id] ? now->count + 1 : now->count);
+				next->path.push_back(next);
+				pq.push(next);
+				if (pq.size() > MAX_NODE_NUM_1)
+				{
+					if (MAX_NODE_NUM_1 >= delete_times)
+						delete_num = MAX_NODE_NUM_1 - delete_times;
+					else
+						delete_num = 1;
+					delete_times += 5;
+					if (delete_num < (int)pq.size())
+					{
+						queNode * node;
+						while (delete_num>0)
+						{
+							node = priorityPop();
+							tmp_pq.push(node);
+							delete_num--;
+						}
+						while (pq.size()>0)
+						{
+							node = priorityPop();
+							delete node;
+						}
+						while (tmp_pq.size() > 0)
+						{
+							node = tmp_pq.top();
+							tmp_pq.pop();
+							pq.push(node);
+						}
+					}
+				}
+			}
+		}
+	}
+	minPath.n = 0;
+	return minPath;
+}
+
+/*
+ÖĞ¼ä½ÚµãĞÔ¼Û±È¿í¶ÈÓÅÏÈËÑË÷Èë¿Úº¯Êı
+*/
 MARK BFS14()
 {
-	int i = 0,j = 0;                              // æ ‡è®°
-	int k = 0;
-	int iPrice = 0;
-    pMARK *pmark= (pMARK*)malloc(sizeof(pMARK)*1000000);
-    pMARK pmarktmp = NULL;
-    int route = 0;
-    int m = 0;
-    int count = 0;
-    MARK minPath;
-
-    minPath.price = MAXSIZE;
-
-    pmark[route++] = nmark_alloc();//åˆå§‹ç‚¹
-
-    if(isDemand(dst_node))pmark[0]->count++;
-
-    for(i = 0;i < node_num;i++)   //ä»ç¬¬1ç‚¹éå†åˆ°ç¬¬Npointç‚¹
-    {
-        m = route;
-        if(route <= 0)return minPath;
-        for(k = 0;k < (m>route?route:m);k++)
-        {
-            if(pmark[k]->price >= minPath.price || pmark[k]->count < count)//å¦‚æœçˆ¶è·¯å¾„æœ‰é—®é¢˜,åˆ æ‰
-            {
-                pmarktmp = pmark[route -1];
-                pmark[route -1] = pmark[k];
-                pmark[k] = pmarktmp;
-                free(pmark[route -1]);
-                route--;
-                continue;
-            }
-            for(j = 0;j < node_num;j++)
-            {
-                if( (iPrice = GraphMatric[j][pmark[k]->path[pmark[k]->n-1]].cost) <= 20)
-                {
-                    if(!isExistNum(pmark[k]->path, pmark[k]->n, j))//å‘ç°ä¸€ä¸ªæ–°çš„è·¯å¾„
-                    {
-                        pmark[route++] = nmark_alloc();//ç”³è¯·è·¯å¾„å­˜å‚¨ç©ºé—´
-                        *pmark[route - 1] = *pmark[k];
-                        pmark[route - 1]->n += 1;
-                        pmark[route - 1]->path[pmark[route - 1]->n -1] = j;
-                        pmark[route - 1]->price += iPrice;
-                        //lspath( pmark[route - 1]->path, pmark[route - 1]->n);
-
-                        if(pmark[route - 1]->price >= minPath.price)//æ–°çš„è·¯å¾„æœ‰é—®é¢˜,åˆ æ‰
-                        {
-                            free(pmark[route - 1]);
-                            route--;
-                            continue;
-                        }
-
-                        if(isDemand(j))//æ˜¯å¿…ç»èŠ‚ç‚¹ï¼ŒåŠ 
-                        {
-                            pmark[route - 1]->count++;
-                        }
-
-                        if(pmark[route - 1]->count < count)//æ–°çš„è·¯å¾„ç»è¿‡çš„å¿…ç»èŠ‚ç‚¹å°‘äº†,åˆ æ‰
-                        {
-                            free(pmark[route - 1]);
-                            route--;
-                            continue;
-                        }
-                        else if(pmark[route - 1]->count > count )//å¿…ç»èŠ‚ç‚¹å¤šäº†ï¼Œå­˜èµ·æ¥
-                        {
-                            count = pmark[route - 1]->count;
-                        }
-
-                        if(j == src_node)//è·¯å¾„åˆ°è¾¾ç›®çš„åœ°,ä»£ä»·å°åˆ™ä¿å­˜ï¼Œåˆ°è¾¾å³åˆ æ‰
-                        {
-                            if(pmark[route - 1]->count == demand_node_num && pmark[route - 1]->price <minPath.price)
-                            {
-                                minPath = *pmark[route - 1];
-                                rezerve(&minPath);
-                                return minPath;
-                            }
-                            free(pmark[route - 1]);
-                            route--;
-                            continue;
-                        }
-                    }
-                }
-            }
-            //åˆ é™¤æ­¤æ¬¡çˆ¶èŠ‚ç‚¹
-            pmarktmp = pmark[route -1];
-            pmark[route -1] = pmark[k];
-            pmark[k] = pmarktmp;
-            free(pmark[route -1]);
-            route--;
-        }
-        //cout<<"route :"<<route<<endl;
-        arryPath_0(pmark,&route,count);//åˆ é™¤å¿…ç»èŠ‚ç‚¹å°‘çš„ç‚¹
+	int dst_mid, i,j;
+	MARK minPath;
+	for (i = 0; i < MAX_NODE - 1; i++)
+	{
+    	for (j = 0; j < MAX_NODE - 1; j++)
+    	{
+    		if (GraphMatric[i][j].cost <= 20)
+    		{
+    			out_node[i][0]++;
+    			out_node[i][out_node[i][0]] = j;
+    		}
+    	}
     }
 
-    for(i=0;i<route;i++)
-    {
-        free(pmark[i]);
-    }
+	minPath.n = 0;
 
-    free(pmark);
-
-    return minPath;
+	for (i = demand_node_num - 1; i >= 0; i--)
+	{
+		dst_mid = demand_node[i];
+		minPath = BFS1415_F(dst_mid);
+		if (minPath.count == demand_node_num)
+		{
+			return minPath;
+		}
+	}
+	return minPath;
 }
 
-
+/*
+ÖĞ¼ä½ÚµãĞÔ¼Û±È¿í¶ÈÓÅÏÈËÑË÷Èë¿Úº¯Êı
+*/
 MARK BFS15()
 {
-	int i = 0,j = 0;                              // æ ‡è®°
-	int k = 0;
-	int iPrice = 0;
-    pMARK *pmark= (pMARK*)malloc(sizeof(pMARK)*1000000);
-    pMARK pmarktmp = NULL;
-    int route = 0;
-    int m = 0;
-    int count = 0;
-    MARK minPath;
-
-    minPath.price = MAXSIZE;
-
-    pmark[route++] = nmark_alloc();//åˆå§‹ç‚¹
-
-    if(isDemand(dst_node))pmark[0]->count++;
-
-    for(i = 0;i < node_num;i++)   //ä»ç¬¬1ç‚¹éå†åˆ°ç¬¬Npointç‚¹
-    {
-        m = route;
-        if(route <= 0)return minPath;
-        for(k = 0;k < (m>route?route:m);k++)
-        {
-            if(pmark[k]->price >= minPath.price || pmark[k]->count < count - 3)//å¦‚æœçˆ¶è·¯å¾„æœ‰é—®é¢˜,åˆ æ‰
-            {
-                pmarktmp = pmark[route -1];
-                pmark[route -1] = pmark[k];
-                pmark[k] = pmarktmp;
-                free(pmark[route -1]);
-                route--;
-                continue;
-            }
-            for(j = 0;j < node_num;j++)
-            {
-                if( (iPrice = GraphMatric[j][pmark[k]->path[pmark[k]->n-1]].cost) <= 20)
-                {
-                    if(!isExistNum(pmark[k]->path, pmark[k]->n, j))//å‘ç°ä¸€ä¸ªæ–°çš„è·¯å¾„
-                    {
-                        pmark[route++] = nmark_alloc();//ç”³è¯·è·¯å¾„å­˜å‚¨ç©ºé—´
-                        *pmark[route - 1] = *pmark[k];
-                        pmark[route - 1]->n += 1;
-                        pmark[route - 1]->path[pmark[route - 1]->n -1] = j;
-                        pmark[route - 1]->price += iPrice;
-                        //lspath( pmark[route - 1]->path, pmark[route - 1]->n);
-
-                        if(pmark[route - 1]->price >= minPath.price)//æ–°çš„è·¯å¾„æœ‰é—®é¢˜,åˆ æ‰
-                        {
-                            free(pmark[route - 1]);
-                            route--;
-                            continue;
-                        }
-
-                        if(isDemand(j))//æ˜¯å¿…ç»èŠ‚ç‚¹ï¼ŒåŠ 
-                        {
-                            pmark[route - 1]->count++;
-                        }
-
-                        if(pmark[route - 1]->count < count - 3)//æ–°çš„è·¯å¾„ç»è¿‡çš„å¿…ç»èŠ‚ç‚¹å°‘äº†,åˆ æ‰
-                        {
-                            free(pmark[route - 1]);
-                            route--;
-                            continue;
-                        }
-                        else if(pmark[route - 1]->count > count )//å¿…ç»èŠ‚ç‚¹å¤šäº†ï¼Œå­˜èµ·æ¥
-                        {
-                            count = pmark[route - 1]->count;
-                        }
-
-                        if(j == src_node)//è·¯å¾„åˆ°è¾¾ç›®çš„åœ°,ä»£ä»·å°åˆ™ä¿å­˜ï¼Œåˆ°è¾¾å³åˆ æ‰
-                        {
-                            if(pmark[route - 1]->count == demand_node_num && pmark[route - 1]->price <minPath.price)
-                            {
-                                minPath = *pmark[route - 1];
-                                rezerve(&minPath);
-                                return minPath;
-                            }
-                            free(pmark[route - 1]);
-                            route--;
-                            continue;
-                        }
-                    }
-                }
-            }
-            //åˆ é™¤æ­¤æ¬¡çˆ¶èŠ‚ç‚¹
-            pmarktmp = pmark[route -1];
-            pmark[route -1] = pmark[k];
-            pmark[k] = pmarktmp;
-            free(pmark[route -1]);
-            route--;
-        }
-        //cout<<"route :"<<route<<endl;
-        arryPath_3(pmark,&route,count);//åˆ é™¤å¿…ç»èŠ‚ç‚¹å°‘çš„ç‚¹
+	int dst_mid, i,j;
+	MARK minPath;
+	for (i = 0; i < MAX_NODE - 1; i++)
+	{
+    	for (j = 0; j < MAX_NODE - 1; j++)
+    	{
+    		if (GraphMatric[i][j].cost <= 20)
+    		{
+    			out_node[i][0]++;
+    			out_node[i][out_node[i][0]] = j;
+    		}
+    	}
     }
 
-    for(i=0;i<route;i++)
-    {
-        free(pmark[i]);
-    }
+	minPath.n = 0;
 
-    free(pmark);
-
-    return minPath;
+	for (i = demand_node_num - 1; i >= 0; i--)
+	{
+		dst_mid = demand_node[i];
+		minPath = BFS1415_F(dst_mid);
+		if (minPath.count == demand_node_num)
+		{
+			return minPath;
+		}
+	}
+	return minPath;
 }
-
 
 void search_route(char *topo[5000], int edge_num, char *demand)
 {
@@ -1224,8 +863,9 @@ void search_route(char *topo[5000], int edge_num, char *demand)
     int rc = 0;
     int i = 0,j =0;
     MARK minPath;
+    time_start = clock();
 
-    ///åˆå§‹åŒ–é‚»æ¥çŸ©é˜µ é»˜è®¤è‡ªèº«ä¸èƒ½åˆ°è‡ªèº«
+    ///³õÊ¼»¯ÁÚ½Ó¾ØÕó Ä¬ÈÏ×ÔÉí²»ÄÜµ½×ÔÉí
     for (int i = 0; i < MAX_NODE; i++)
     {
         for (int j = 0; j < MAX_NODE; j++)
@@ -1234,7 +874,7 @@ void search_route(char *topo[5000], int edge_num, char *demand)
         }
     }
 
-    ///å­˜å‚¨å›¾ä¿¡æ¯
+    ///´æ´¢Í¼ĞÅÏ¢
     for (i = 0; i < edge_num; i++)
     {
         rc = sscanf(topo[i],"%d%*c%d%*c%d%*c%d",&id,&row,&column,&cost);
@@ -1245,15 +885,20 @@ void search_route(char *topo[5000], int edge_num, char *demand)
         }
         else
         {
-            GraphMatric[row][column].cost = cost;
-            GraphMatric[row][column].id = id;
+            GraphMatric[row][column].cost = cost;//Â·¾¶´ú¼Û
+            GraphMatric[row][column].id = id;//Â·¾¶id
+            //out_node[row][0]++;//³ö½ÚµãÊıÄ¿
+		    //out_node[row][out_node[row][0]] = column;//³ö½Úµã ½ÚµãºÅ
             node_num = (row > node_num)? row: node_num;
             node_num = (column> node_num)? column: node_num;
         }
     }
-    node_num++;
+    node_num++;//½ÚµãÊı
 
-    ///å­˜å‚¨å‘½ä»¤ä¿¡æ¯
+
+
+
+    ///´æ´¢ÃüÁîĞÅÏ¢
     const char *d = ",";
     char *p;
     p = strtok(demand, d);
@@ -1280,14 +925,15 @@ void search_route(char *topo[5000], int edge_num, char *demand)
         p = strtok(NULL, d);
     }
 
+    for (i = 0; i < node_num; i++)
+	{
+		isVital[i] = false;//Ä¬ÈÏ²»ÊÇ±Ø¾­½Úµã
+	}
 
-printf("\nnode_num: %d\tedge_num: %d\n\n", node_num,edge_num);
-/*
-    printf("src -> dst:\t%d -> %d\n", src_node,dst_node);
-    printf("pass_num: %d\n", demand_node_num);
-    printf("pass_route: ");
-*/
-
+	for (i = 0; i < demand_node_num; i++)
+	{
+		isVital[demand_node[i]] = true;//demand_node[i]ÊÇ±Ø¾­½ÚµãµÄid
+	}
 /*
 1-6:<300
 7:300<500
@@ -1300,45 +946,44 @@ printf("\nnode_num: %d\tedge_num: %d\n\n", node_num,edge_num);
 14:>=2375
 15:2200= - 2375
 */
-    if(edge_num <= 300)// 1-6   ok ä¸è¦æ›´æ”¹
+
+    if(edge_num <= 300)// 1-6   ok ²»Òª¸ü¸Ä
     {
-        minPath = BFS1_6();//å°½åŠ›æ‰¾æœ€ä¼˜
+        minPath = Matrix_BFS(4,3,3,false);//¾¡Á¦ÕÒ×îÓÅ
     }
-    else if(edge_num <= 500)// 7 ok ä¸è¦æ›´æ”¹
+    else if(edge_num <= 500)// 7 ok ²»Òª¸ü¸Ä
     {
-        minPath = BFS7();//å°½åŠ›æ‰¾æœ€ä¼˜
+        minPath = Matrix_BFS(4,2,3,false);//¾¡Á¦ÕÒ×îÓÅ
     }
     else if(edge_num <= 1000)//8 ok
     {
-        minPath = BFS8();//å°½åŠ›æ‰¾æœ€ä¼˜
+        minPath = Matrix_BFS(2,2,1,false);//¾¡Á¦ÕÒ×îÓÅ
     }
     else if(edge_num <= 1100)//9 just ok
     {
-        minPath = BFS9();
+        minPath = Matrix_BFS(1,0,1,false);
     }
     else if(edge_num <= 1500)//10 just ok
     {
-        minPath = BFS10();
+        minPath = Chain_BFS();
     }
     else if(edge_num <= 2000)// 12-13 ok
     {
         minPath = BFS1213();
     }
-    else if(edge_num <= 2200)//11 not ok
+    else if(edge_num <= 2200)//11 ok
     {
-        minPath = BFS11();
+        minPath = Chain_BFS();
     }
-    else if(edge_num < 2375)// 15 not ok
+    else if(edge_num < 2375)//15 not ok
     {
-        minPath = BFS15();
+		minPath = BFS15();
     }
-    else//14 not ok
+    else                    //14 not ok
     {
         minPath = BFS14();
     }
-
-    //lspath(minPath.path, minPath.n);
-    //cout<<minPath.price<<endl;
+    lspath(minPath.path, minPath.n);
     recordPath(&minPath);
 }
 
