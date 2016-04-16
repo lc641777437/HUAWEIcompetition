@@ -1,4 +1,4 @@
-///C±ê×¼Àà¿â
+ï»¿///Cæ ‡å‡†ç±»åº“
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -11,93 +11,99 @@
 #include <unordered_set>
 #include <set>
 #include <vector>
-using namespace std;
 
-///×Ô¶¨ÒåÍ·ÎÄ¼ş
+///è‡ªå®šä¹‰å¤´æ–‡ä»¶
 #include "route.h"
 #include "lib_record.h"
+#include "lp_lib.h"
+using namespace std;
 
 
-///¶¨ÒåÏŞÖÆ
-#define MAX_NODE   601
-#define MAX_NODE_NUM_1 5000
-#define MAX_NODE_NUM_2 3000
+///å®šä¹‰é™åˆ¶
+#define MAX_NODE   600
 #define MAX_DEMAND_NODE 50
-#define MAX_OUT_DEGREE  8
-#define MAXSIZE         700
-
-int out_node[MAX_NODE][MAX_NODE] = { 0 }; //´æ´¢I½ÚµãµÄ³ö½Úµã¡£
-bool used[MAX_NODE];   //ÅĞ¶ÏµÚi¸ö½ÚµãÊÇ·ñ±»Ê¹ÓÃ
-
-//Ê±¼ä±äÁ¿
-
-clock_t time_start;
-#define now_time (double)(clock()-time_start)/CLOCKS_PER_SEC
-
-int use_time_s = 0;
-int use_time_ms = 0;
-
-bool isVital[MAX_NODE];			//ÅĞ¶ÏµØi¸ö½ÚµãÊÇ·ñÎª±Ø¾­½Úµã
-
-int delete_num = 0;			//ÒªÉ¾³ıµÄ½ÚµãÊıÄ¿
-int delete_times = 0;		//É¾³ıµÄ´ÎÊı
+#define MAXSIZE  700
+#define MAXEDGENUM 4800
 
 
-//Â·¾¶½Úµã
+unsigned int  maxsize = 735;
+unsigned int maxnode = 5000;
+
+int out_degree[MAX_NODE][MAX_NODE] = { 0 };
+
+time_t start_time = 0;
+
+int link[MAX_NODE] = { 0 };
+
+bool timeout = false;
+
+bool isVital[MAX_NODE];
+
+unsigned int cut = 0;
+unsigned int cut_num = 0;
+
 struct pathNode
 {
-	int id; //µ±Ç°½ÚµãID
-	pathNode* pre; //ÉÏ¸ö½Úµã
+	int id;
+	pathNode* pre;
 };
 
-//Á´±í¶ÓÁĞ½Úµã
 struct Node
 {
-	int id; //µ±Ç°½ÚµãID
-	int cost; //Ä¿Ç°µÄºÄ·Ñ
-	int count;//¾­¹ıµÄ±Ø¾­½ÚµãÊıÄ¿
-	pathNode* tail; //Â·¾¶Î²½ÚµãÖ¸Õë
-	Node* pre;//¶ÓÁĞÁ´±íÖĞµÄÉÏÒ»¸ö½Úµã
-	Node* next;//¶ÓÁĞÁ´±íÖĞµÄÏÂÒ»¸ö½Úµã
+	int id;
+	int cost;
+	int count;
+	pathNode* tail;
+	Node* pre;
+	Node* next;
 };
 
 
-//¹ã¶ÈÓÅÏÈËÑË÷Ïà¹Ø¶¨Òå
 typedef	struct MARK
 {
-	int	price;				//Â·¾¶´ú¼Û
-	int n;					//Â·¾¶ÊıÄ¿£¬º¬Í·Î²
-	int count;              //¼ÇÂ¼Â·¾¶µÄ±Ø¾­½Úµã¸öÊı
-	int path[MAX_NODE + 1];	//´æ´¢Â·¾¶
+	int	price;
+	int n;
+	int count;
+	int path[MAX_NODE + 1];
 }MARK,*pMARK;
 
-///Í¼ĞÅÏ¢´æ´¢½á¹¹Ìå
+MARK minpath;
+
 typedef struct DLink
 {
     int id;
     int cost;
 }DLink;
 
+typedef struct Sink
+{
+    int id;
+    int src;
+    int dst;
+    int isUsed;
+    int cost;
+}Sink;
 
-//ÓÅÏÈ¶ÓÁĞ½Úµã
+
+Sink Link[MAXEDGENUM];
 struct queNode
 {
-	short id; //µ±Ç°½Úµãroute_id
-	short cost; //Ä¿Ç°µÄºÄ·Ñ
-	short count;//¾­¹ıµÄ±Ø¾­½ÚµãÊıÄ¿
-	vector<queNode*> path;    //Ä¬ÈÏ»á°üº¬Æğµã
+	short id;
+	short cost;
+	short count;
+	vector<queNode*> path;
 	queNode(short i) : id(i), cost(0), count(0) {};
 	queNode(short i, short c, vector<queNode*> p, short a) : id(i), cost(c), path(p), count(a) {};
-	bool inPath(short target)
+	bool inPath(short dst_node)
 	{
 		for (queNode* i : path)
-		if (target == i->id)
+		if (dst_node == i->id)
 			return true;
 		return false;
 	}
 };
 
-//pqÖĞÓÅÏÈ¼¶µÄ±È½Ï
+
 struct Compare
 {
 	bool operator () (queNode* node1, queNode* node2)
@@ -114,14 +120,14 @@ struct Compare
 	}
 };
 
-priority_queue<queNode*, vector<queNode*>, Compare> pq;
-priority_queue<queNode*, vector<queNode*>, Compare> tmp_pq;
-priority_queue<queNode*, vector<queNode*>, Compare> pq2;
-priority_queue<queNode*, vector<queNode*>, Compare> tmp_pq_2;
+priority_queue<queNode*, vector<queNode*>, Compare> pqf;
+priority_queue<queNode*, vector<queNode*>, Compare> pqb;
 
 DLink GraphMatric[MAX_NODE][MAX_NODE];
 
 int demand_node[MAX_DEMAND_NODE];
+
+
 int demand_node_num = 0;
 
 int node_num = 0;
@@ -143,7 +149,7 @@ pMARK mark_alloc(void)
     return p;
 }
 
-//NumÔÚÊı×éarrÖĞÊÇ·ñ´æÔÚ
+
 bool isExistNum(int arr[], int n, int Num)
 {
     bool bExist = false;
@@ -173,25 +179,24 @@ void recordPath(pMARK route)
     {
     	if(i != route->n - 1)
 	    {
+	        cout<<GraphMatric[route->path[i]][route->path[i+1]].id<<" ";
 	        record_result(GraphMatric[route->path[i]][route->path[i+1]].id);
 	    }
     }
+    cout<<endl;
 }
 
-//ÓÅÏÈ¶ÓÁĞ½Úµã³öÕ¾
-queNode* priorityPop()
+queNode* priorityPop_F()
 {
-	queNode* result = pq.top();
-	pq.pop();
+	queNode* result = pqf.top();
+	pqf.pop();
 	return result;
 }
 
-
-//ÓÅÏÈ¶ÓÁĞ½Úµã³öÕ¾
-queNode* priorityPop2()
+queNode* priorityPop_B()
 {
-	queNode* result = pq2.top();
-	pq2.pop();
+	queNode* result = pqb.top();
+	pqb.pop();
 	return result;
 }
 
@@ -203,11 +208,11 @@ void arryPath(pMARK pmark[],int *route,int count,int minus)
 	int tear = -1;
     for(i = 0;i < routetmp;i++)
     {
-        if(tear == -1 )//Ñ°ÕÒµÚÒ»¸öÒªÉáÆúµÄÂ·¾¶
+        if(tear == -1 )
         {
             if(pmark[i]->count < count - minus)
             {
-                tear = i;//¶¨Î»µÚÒ»¸öÒªÉáÆúµÄÂ·¾¶
+                tear = i;
                 continue;
             }
             else
@@ -234,22 +239,7 @@ void arryPath(pMARK pmark[],int *route,int count,int minus)
     }
 }
 
-int rezerve(pMARK p)
-{
-    int tmp;
-    for(int i = 0;i < p->n/2;i++)
-    {
-        tmp = p->path[i];
-        p->path[i] = p->path[p->n - 1 - i];
-        p->path[p->n - 1 - i] = tmp;
-    }
-    return 0;
-}
-
-/*
-bfs£¬²é¿´µ±Ç°½ÚµãÊÇ·ñÒÑ¾­±»Ê¹ÓÃ
-*/
-bool check_used(pathNode* tal, int id)
+bool isUsed(pathNode* tal, int id)
 {
 	while (tal->pre != NULL)
 	{
@@ -260,14 +250,11 @@ bool check_used(pathNode* tal, int id)
 	return true;
 }
 
-/*
-ÒÑ¾­ÓĞ½âÔò´æ´¢¸Ã½â
-*/
 MARK saveResult11(pathNode* tal)
 {
 	int i;
 	MARK minPath;
-	int Path[MAX_NODE] = { 0 };//Â·¾¶½ÚµãÊı×é
+	int Path[MAX_NODE] = {0};
 
 	minPath.n = 1;
 	Path[0] = dst_node;
@@ -283,10 +270,24 @@ MARK saveResult11(pathNode* tal)
 	}
 	return minPath;
 }
-/*
-ÒÑ¾­ÓĞ½âÔò´æ´¢¸Ã½â
-*/
-MARK saveResult(vector<queNode*> path)
+
+bool save2minpath(vector<queNode*> path)
+{
+    minpath.n = 0;
+	for (queNode* n : path)
+	{
+		minpath.path[minpath.n++] = n->id;
+		if(isVital[minpath.path[minpath.n -1]]) minpath.count++;
+	}
+    minpath.path[minpath.n++] = dst_node;
+    if(isVital[minpath.path[minpath.n -1]])
+    {
+        minpath.count++;
+    }
+	return true;
+}
+
+MARK save2minPath(vector<queNode*> path)
 {
     MARK minPath;
     minPath.n = 0;
@@ -300,11 +301,559 @@ MARK saveResult(vector<queNode*> path)
 
 	return minPath;
 }
-
-
-MARK Matrix_BFS(int cut1, int cut2, int cut3, bool state)
+//ä½ è¦å®Œæˆçš„åŠŸèƒ½æ€»å…¥å£
+void lp_solve8(int edge_num)
 {
-	int i = 0,j = 0;                              // ±ê¼Ç
+    int i = 0, k = 0, j = 0;
+	lprec *lp;
+	int Ncol;
+	int *colno = NULL;
+	REAL *row = NULL;
+	REAL *res = NULL;
+    int flag = 0;
+    int loop[MAXEDGENUM] = {0};
+    int loopCount = 0;
+    int demand_count = 0;
+    int iNode = 0;
+    int result_path[MAX_NODE] = {0};
+
+	Ncol = edge_num;
+	lp = make_lp(0, Ncol);
+
+	for (i = 1; i <= Ncol; i++)
+	{
+		set_int(lp, i, TRUE);
+	}
+
+
+	colno = (int *)malloc(Ncol * sizeof(*colno));
+	row = (REAL *)malloc(Ncol * sizeof(*row));
+	res = (REAL *)malloc(Ncol * sizeof(*res));
+
+	set_add_rowmode(lp, TRUE);
+	for (i = 0; i < demand_node_num; i++)
+	{
+		k = 0;
+		for (j = 0; j < node_num; j++)
+		{
+			if (GraphMatric[demand_node[i]][j].cost <= 20)
+			{
+				colno[k] = GraphMatric[demand_node[i]][j].id + 1;
+				row[k++] = 1;
+			}
+		}
+		add_constraintex(lp, k, row, colno, EQ, 1);
+	}
+
+
+	for (i = 0; i < demand_node_num; i++)
+	{
+		k = 0;
+		for (j = 0; j < node_num; j++)
+		{
+			if (GraphMatric[j][demand_node[i]].cost <= 20)
+			{
+				colno[k] = GraphMatric[j][demand_node[i]].id + 1;
+				row[k++] = 1;
+			}
+		}
+		add_constraintex(lp, k, row, colno, EQ, 1);
+	}
+
+
+	k = 0;
+	for (j = 0; j < node_num; j++)
+	{
+		if (GraphMatric[j][src_node].cost <= 20)
+		{
+			colno[k] = GraphMatric[j][src_node].id + 1;
+			row[k++] = 1;
+		}
+	}
+	add_constraintex(lp, k, row, colno, EQ, 0);
+
+	k = 0;
+	for (j = 0; j < node_num; j++)
+	{
+		if (GraphMatric[src_node][j].cost <= 20)
+		{
+			colno[k] = GraphMatric[src_node][j].id + 1;
+			row[k++] = 1;
+		}
+	}
+	add_constraintex(lp, k, row, colno, EQ, 1);
+
+
+	k = 0;
+	for (j = 0; j < node_num; j++)
+	{
+		if (GraphMatric[dst_node][j].cost <= 20)
+		{
+			colno[k] = GraphMatric[dst_node][j].id + 1;
+			row[k++] = 1;
+		}
+	}
+	add_constraintex(lp, k, row, colno, EQ, 0);
+
+
+
+	k = 0;
+	for (j = 0; j < node_num; j++)
+	{
+		if (GraphMatric[j][dst_node].cost <= 20)
+		{
+			colno[k] = GraphMatric[j][dst_node].id + 1;
+			row[k++] = 1;
+		}
+	}
+	add_constraintex(lp, k, row, colno, EQ, 1);
+
+	for (i = 0; i < node_num; i++)
+	{
+		k = 0;
+		if (i == dst_node) continue;
+		if (i == src_node) continue;
+		if (isVital[i]) continue;
+		for (j = 0; j < node_num; j++)
+		{
+			if (GraphMatric[j][i].cost <= 20)
+			{
+				colno[k] = GraphMatric[j][i].id + 1;
+				row[k++] = 1;
+			}
+		}
+		for (j = 0; j < node_num; j++)
+		{
+			if (GraphMatric[i][j].cost <= 20)
+			{
+				colno[k] = GraphMatric[i][j].id + 1;
+				row[k++] = -1;
+			}
+		}
+		add_constraintex(lp, k, row, colno, EQ, 0);
+	}
+
+	for (i = 0; i < node_num; i++)
+	{
+		k = 0;
+		for (j = 0; j < node_num; j++)
+		{
+			if (GraphMatric[j][i].cost <= 20)
+			{
+				colno[k] = GraphMatric[j][i].id + 1;
+				row[k++] = 1;
+			}
+		}
+		add_constraintex(lp, k, row, colno, LE, 1);
+
+		k = 0;
+		for (j = 0; j < node_num; j++)
+		{
+			if (GraphMatric[i][j].cost <= 20)
+			{
+				colno[k] = GraphMatric[i][j].id + 1;
+				row[k++] = 1;
+			}
+		}
+		add_constraintex(lp, k, row, colno, LE, 1);
+	}
+
+	 for(i = 0;i < node_num;i++)
+     {
+         for(j = 0;j < node_num;j++)
+         {
+             row[i] = 0;
+             if(GraphMatric[i][j].cost <= 20 && GraphMatric[j][i].cost <= 20)
+             {
+                 k = 0;
+                 colno[k] = GraphMatric[i][j].id + 1;
+                 row[k++] = 1;
+                 colno[k] = GraphMatric[j][i].id + 1;
+                 row[k++] = 1;
+                 add_constraintex(lp, k, row, colno, LE, 1);
+             }
+         }
+     }
+
+
+	set_add_rowmode(lp, FALSE);
+	j = 0;
+	for (i = 1; i <= edge_num; i++)
+	{
+		colno[j] = i;
+		row[j++] = Link[i - 1].cost;
+	}
+	set_obj_fnex(lp, j, row, colno);
+
+
+    while(1)
+    {
+	    set_minim(lp);
+      	solve(lp);
+		get_variables(lp, res);
+
+        for(j = 0;j < MAXEDGENUM;j++)
+        {
+            Link[i].isUsed = 0;
+        }
+
+        j = 0;
+        demand_count = 0;
+        iNode = src_node;
+
+        for(i=0;i < MAX_NODE;i++)
+        {
+            result_path[i] = 0;
+        }
+
+        while(iNode != dst_node)
+        {
+            for(i = 0;i < edge_num;i++)
+            {
+                if((res[i] == 1) && (Link[i].src == iNode))
+                {
+                    if(isVital[Link[i].src])
+                    {
+                        demand_count++;
+                    }
+                    Link[i].isUsed = 1;
+                    result_path[j++] = i;
+                    iNode = Link[i].dst;
+                    break;
+                }
+            }
+        }
+
+        if(demand_count == demand_node_num)
+        {
+            for(i = 0;i < j;i++)
+            {
+                record_result(result_path[i]);
+            }
+            return;
+        }
+        else//æœ‰ç¯
+        {
+            flag = 0;
+
+            loopCount = 0;
+            for(i = 0;i < edge_num;i++)
+            {
+                if((res[i] == 1) && isVital[Link[i].src] && !Link[i].isUsed && flag == 0)
+                {
+                    loop[loopCount++] = i;
+                    flag = 1;
+                    Link[i].isUsed = 1;
+                    iNode = Link[i].dst;
+                    i = -1;
+                    continue;
+                }
+
+                if((res[i] == 1) && (Link[i].src == iNode) && flag == 1)
+                {
+                    if(Link[i].isUsed == 1)
+                    {
+                        break;
+                    }
+                    loop[loopCount++] = i;
+                    Link[i].isUsed = 1;
+                    iNode = Link[i].dst;
+                    i = -1;
+                }
+            }
+
+            set_add_rowmode(lp, TRUE);
+            k = 0;
+            for(i = 0;i < loopCount;i++)
+        	{
+        	    colno[k] = loop[i] + 1;
+        		row[k++] = 1;
+        	}
+        	add_constraintex(lp, k, row, colno, LE, loopCount - 1);
+        	set_add_rowmode(lp, FALSE);
+
+        }
+    }
+}
+
+//ä½ è¦å®Œæˆçš„åŠŸèƒ½æ€»å…¥å£
+void lp_solve(int edge_num)
+{
+    int i = 0, k = 0, j = 0;
+	lprec *lp;
+	int Ncol;
+	int *colno = NULL;
+	REAL *row = NULL;
+	REAL *res = NULL;
+    int flag = 0;
+    int loop[MAXEDGENUM] = {0};
+    int loopCount = 0;
+    int demand_count = 0;
+    int iNode = 0;
+    int result_path[MAX_NODE] = {0};
+
+	Ncol = edge_num;
+	lp = make_lp(0, Ncol);
+
+	for (i = 1; i <= Ncol; i++)
+	{
+		set_int(lp, i, TRUE);
+	}
+
+
+	colno = (int *)malloc(Ncol * sizeof(*colno));
+	row = (REAL *)malloc(Ncol * sizeof(*row));
+	res = (REAL *)malloc(Ncol * sizeof(*res));
+
+	set_add_rowmode(lp, TRUE);
+	for (i = 0; i < demand_node_num; i++)
+	{
+		k = 0;
+		for (j = 0; j < node_num; j++)
+		{
+			if (GraphMatric[demand_node[i]][j].cost <= 20)
+			{
+				colno[k] = GraphMatric[demand_node[i]][j].id + 1;
+				row[k++] = 1;
+			}
+		}
+		add_constraintex(lp, k, row, colno, EQ, 1);
+	}
+
+
+	for (i = 0; i < demand_node_num; i++)
+	{
+		k = 0;
+		for (j = 0; j < node_num; j++)
+		{
+			if (GraphMatric[j][demand_node[i]].cost <= 20)
+			{
+				colno[k] = GraphMatric[j][demand_node[i]].id + 1;
+				row[k++] = 1;
+			}
+		}
+		add_constraintex(lp, k, row, colno, EQ, 1);
+	}
+
+
+	k = 0;
+	for (j = 0; j < node_num; j++)
+	{
+		if (GraphMatric[j][src_node].cost <= 20)
+		{
+			colno[k] = GraphMatric[j][src_node].id + 1;
+			row[k++] = 1;
+		}
+	}
+	add_constraintex(lp, k, row, colno, EQ, 0);
+
+	k = 0;
+	for (j = 0; j < node_num; j++)
+	{
+		if (GraphMatric[src_node][j].cost <= 20)
+		{
+			colno[k] = GraphMatric[src_node][j].id + 1;
+			row[k++] = 1;
+		}
+	}
+	add_constraintex(lp, k, row, colno, EQ, 1);
+
+
+	k = 0;
+	for (j = 0; j < node_num; j++)
+	{
+		if (GraphMatric[dst_node][j].cost <= 20)
+		{
+			colno[k] = GraphMatric[dst_node][j].id + 1;
+			row[k++] = 1;
+		}
+	}
+	add_constraintex(lp, k, row, colno, EQ, 0);
+
+
+
+	k = 0;
+	for (j = 0; j < node_num; j++)
+	{
+		if (GraphMatric[j][dst_node].cost <= 20)
+		{
+			colno[k] = GraphMatric[j][dst_node].id + 1;
+			row[k++] = 1;
+		}
+	}
+	add_constraintex(lp, k, row, colno, EQ, 1);
+
+	for (i = 0; i < node_num; i++)
+	{
+		k = 0;
+		if (i == dst_node) continue;
+		if (i == src_node) continue;
+		if (isVital[i]) continue;
+		for (j = 0; j < node_num; j++)
+		{
+			if (GraphMatric[j][i].cost <= 20)
+			{
+				colno[k] = GraphMatric[j][i].id + 1;
+				row[k++] = 1;
+			}
+
+			if (GraphMatric[i][j].cost <= 20)
+			{
+				colno[k] = GraphMatric[i][j].id + 1;
+				row[k++] = -1;
+			}
+		}
+		add_constraintex(lp, k, row, colno, EQ, 0);
+	}
+
+	for (i = 0; i < node_num; i++)
+	{
+		k = 0;
+		for (j = 0; j < node_num; j++)
+		{
+			if (GraphMatric[j][i].cost <= 20)
+			{
+				colno[k] = GraphMatric[j][i].id + 1;
+				row[k++] = 1;
+			}
+		}
+		add_constraintex(lp, k, row, colno, LE, 1);
+
+		k = 0;
+		for (j = 0; j < node_num; j++)
+		{
+			if (GraphMatric[i][j].cost <= 20)
+			{
+				colno[k] = GraphMatric[i][j].id + 1;
+				row[k++] = 1;
+			}
+		}
+		add_constraintex(lp, k, row, colno, LE, 1);
+	}
+
+	 for(i = 0;i < node_num;i++)
+     {
+         for(j = 0;j < node_num;j++)
+         {
+             row[i] = 0;
+             if(GraphMatric[i][j].cost <= 20 && GraphMatric[j][i].cost <= 20)
+             {
+                 k = 0;
+                 colno[k] = GraphMatric[i][j].id + 1;
+                 row[k++] = 1;
+                 colno[k] = GraphMatric[j][i].id + 1;
+                 row[k++] = 1;
+                 add_constraintex(lp, k, row, colno, LE, 1);
+             }
+         }
+     }
+
+
+	set_add_rowmode(lp, FALSE);
+
+	j = 0;
+	for (i = 1; i <= edge_num; i++)
+	{
+		colno[j] = i;
+		row[j++] = Link[i - 1].cost;
+	}
+	set_obj_fnex(lp, j, row, colno);
+
+    set_minim(lp);
+    set_verbose(lp, IMPORTANT);
+
+    while(1)
+    {
+      	solve(lp);
+		get_variables(lp, res);
+
+        for(j = 0;j < MAXEDGENUM;j++)
+        {
+            Link[i].isUsed = 0;
+        }
+
+        j = 0;
+        demand_count = 0;
+        iNode = src_node;
+
+        while(iNode != dst_node)
+        {
+            for(i = 0;i < edge_num;i++)
+            {
+                if((res[i] == 1) && (Link[i].src == iNode))
+                {
+                    if(isVital[Link[i].src])
+                    {
+                        demand_count++;
+                    }
+                    Link[i].isUsed = 1;
+                    result_path[j++] = i;
+                    iNode = Link[i].dst;
+                    if(iNode == dst_node)
+                    {
+                        break;
+                    }
+                    i = -1;
+                }
+            }
+        }
+
+        if(demand_count == demand_node_num)
+        {
+            for(i = 0;i < j;i++)
+            {
+                record_result(result_path[i]);
+            }
+            return;
+        }
+        else//æœ‰ç¯
+        {
+            flag = 0;
+            loopCount = 0;
+            for(i = 0;i < edge_num;i++)
+            {
+                if((res[i] == 1) && !(Link[i].isUsed) && flag == 0)
+                {
+                    loop[loopCount++] = i;
+                    flag = 1;
+                    Link[i].isUsed = 1;
+                    iNode = Link[i].dst;
+                    i = -1;
+                    continue;
+                }
+
+                if((res[i] == 1) && (Link[i].src == iNode) && flag == 1)
+                {
+                    if(Link[i].isUsed == 1)
+                    {
+                        break;
+                    }
+                    loop[loopCount++] = i;
+                    Link[i].isUsed = 1;
+                    iNode = Link[i].dst;
+                    i = -1;
+                    continue;
+                }
+            }
+
+            set_add_rowmode(lp, TRUE);
+            k = 0;
+            for(i = 0;i < loopCount;i++)
+        	{
+        	    colno[k] = loop[i] + 1;
+        		row[k++] = 1;
+        	}
+        	add_constraintex(lp, k, row, colno, LE, loopCount - 1);
+        	set_add_rowmode(lp, FALSE);
+        }
+    }
+}
+
+
+
+MARK Matrix_BFS(int cut1, int cut2, int cut3, bool state,int dev)
+{
+	int i = 0,j = 0;
 	int k = 0;
 	int iPrice = 0;
     pMARK *pmark= (pMARK*)malloc(sizeof(pMARK)*1000000);
@@ -313,20 +862,21 @@ MARK Matrix_BFS(int cut1, int cut2, int cut3, bool state)
     int m = 0;
     int count = 0;
     MARK minPath;
+    int getCount = 0;
 
-    minPath.price = MAXSIZE;
+    minPath.price = maxsize/dev;
 
-    pmark[route++] = mark_alloc();//³õÊ¼µã
+    pmark[route++] = mark_alloc();
 
     if(isVital[src_node])pmark[0]->count++;
 
-    for(i = 0;i < node_num;i++)   //´ÓµÚ1µã±éÀúµ½µÚNpointµã
+    for(i = 0;i < node_num;i++)
     {
         m = route;
         if(route <= 0)return minPath;
         for(k = 0;k < (m>route?route:m);k++)
         {
-            if(pmark[k]->price >= minPath.price || pmark[k]->count < count - cut1)//Èç¹û¸¸Â·¾¶ÓĞÎÊÌâ,É¾µô
+            if(pmark[k]->price >= minPath.price || pmark[k]->count < count - cut1)
             {
                 pmarktmp = pmark[route -1];
                 pmark[route -1] = pmark[k];
@@ -339,16 +889,15 @@ MARK Matrix_BFS(int cut1, int cut2, int cut3, bool state)
             {
                 if( (iPrice = GraphMatric[pmark[k]->path[pmark[k]->n-1]][j].cost) <= 20)
                 {
-                    if(!isExistNum(pmark[k]->path, pmark[k]->n, j))//·¢ÏÖÒ»¸öĞÂµÄÂ·¾¶
+                    if(!isExistNum(pmark[k]->path, pmark[k]->n, j))
                     {
-                        pmark[route++] = mark_alloc();//ÉêÇëÂ·¾¶´æ´¢¿Õ¼ä
+                        pmark[route++] = mark_alloc();
                         *pmark[route - 1] = *pmark[k];
                         pmark[route - 1]->n += 1;
                         pmark[route - 1]->path[pmark[route - 1]->n -1] = j;
                         pmark[route - 1]->price += iPrice;
-                        //lspath( pmark[route - 1]->path, pmark[route - 1]->n);
 
-                        if(pmark[route - 1]->price >= minPath.price)//ĞÂµÄÂ·¾¶ÓĞÎÊÌâ,É¾µô
+                        if(pmark[route - 1]->price >= minPath.price)
                         {
                             free(pmark[route - 1]);
                             route--;
@@ -359,23 +908,27 @@ MARK Matrix_BFS(int cut1, int cut2, int cut3, bool state)
                             pmark[route - 1]->count++;
                         }
 
-                        if(pmark[route - 1]->count < count - cut2)//ĞÂµÄÂ·¾¶¾­¹ıµÄ±Ø¾­½ÚµãÉÙÁË,É¾µô
+                        if(pmark[route - 1]->count < count - cut2)
                         {
                             free(pmark[route - 1]);
                             route--;
                             continue;
                         }
-                        else if(pmark[route - 1]->count > count)//±Ø¾­½Úµã¶àÁË£¬´æÆğÀ´
+                        else if(pmark[route - 1]->count > count)
                         {
                             count = pmark[route - 1]->count;
                         }
 
-                        if(j == dst_node)//Â·¾¶µ½´ïÄ¿µÄµØ,´ú¼ÛĞ¡Ôò±£´æ£¬µ½´ï¼´É¾µô
+                        if(j == dst_node)
                         {
                             if(pmark[route - 1]->count == demand_node_num && pmark[route - 1]->price < minPath.price)
                             {
                                 minPath = *pmark[route - 1];
-                                if(state)return minPath;
+
+                                if(state && ++getCount == 8)
+                                {
+                                    return minPath;
+                                }
                             }
                             free(pmark[route - 1]);
                             route--;
@@ -384,14 +937,13 @@ MARK Matrix_BFS(int cut1, int cut2, int cut3, bool state)
                     }
                 }
             }
-            //É¾³ı´Ë´Î¸¸½Úµã
             pmarktmp = pmark[route -1];
             pmark[route -1] = pmark[k];
             pmark[k] = pmarktmp;
             free(pmark[route -1]);
             route--;
         }
-        arryPath(pmark,&route,count,cut3);//É¾³ı±Ø¾­½ÚµãÉÙµÄµã
+        arryPath(pmark,&route,count,cut3);
     }
 
     for(i=0;i<route;i++)
@@ -403,20 +955,32 @@ MARK Matrix_BFS(int cut1, int cut2, int cut3, bool state)
     return minPath;
 }
 
-/*
-ÕıÏò½ÚµãÓÅÏÈ¿í¶ÈÓÅÏÈËÑË÷
-*/
+Node* getHead(pathNode* Nodetmp)
+{
+    Node* head;
+    head = (Node *)malloc(sizeof(Node));
+	head->id = src_node;
+	head->next = NULL;
+	head->pre = NULL;
+	head->tail = Nodetmp;
+	head->cost = 0;
+	head->count = 0;
+
+	return head;
+}
+
+
 MARK Chain_BFS()
 {
 	int i,j;
-	int icost, now_id, next_id;
-	Node* now;
+	int saveminpath, now_id, next_id;
+	Node* iNode;
 	Node* next;
 	Node* tmp;
 	pathNode* Nodetmp;
-	int qLen = 0; //¶ÓÁĞ³¤¶È
-    Node* head;//¶ÓÁĞÍ·½áµã
-    Node* tail;//¶ÓÁĞÎ²½Úµã
+	int qLen = 0;
+    Node* head;
+    Node* tail;
     MARK minPath;
 
     for (i = MAX_NODE - 1; i >= 0; i--)
@@ -425,85 +989,73 @@ MARK Chain_BFS()
     	{
     		if (GraphMatric[i][j].cost <= 20)
     		{
-    			out_node[i][0]++;
-    			out_node[i][out_node[i][0]] = j;
+    			out_degree[i][0]++;
+    			out_degree[i][out_degree[i][0]] = j;
     		}
     	}
     }
 
-    minPath.price = MAXSIZE;
+    minPath.price = 700;
 
-	head = (Node *)malloc(sizeof(Node));
 	Nodetmp = (pathNode *)malloc(sizeof(pathNode));
-
 	Nodetmp->id = src_node;
 	Nodetmp->pre = NULL;
-
-	head->id = src_node;
-	head->next = NULL;
-	head->pre = NULL;
-	head->tail = Nodetmp;
-	head->cost = 0;
-	head->count = 0;
+	head = getHead(Nodetmp);
 
 	tail = head;
 	qLen = 1;
 
 	while (qLen >= 1)
 	{
-		if (now_time >= 9.8)
+		iNode = head;
+		now_id = iNode->id;
+		for (i = 1; i <= out_degree[now_id][0]; i++)
 		{
-			return minPath;
-        }
-		now = head;
-		now_id = now->id;
-		for (i = 1; i <= out_node[now_id][0]; i++)
-		{
-			next_id = out_node[now_id][i];
-			icost = now->cost + GraphMatric[now_id][next_id].cost;
-			if (icost >= minPath.price)
+			next_id = out_degree[now_id][i];
+			saveminpath = iNode->cost + GraphMatric[now_id][next_id].cost;
+			if (saveminpath >= minPath.price)
 			{
 				continue;
 			}
 			if (next_id == dst_node)
 			{
-				if (now->count == demand_node_num)
+				if (iNode->count == demand_node_num)
 				{
-					minPath.price = icost;
-					minPath = saveResult11(now->tail);
+					minPath.price = saveminpath;
+					minPath = saveResult11(iNode->tail);
 				}
 				else
 				    continue;
 			}
-			else if (check_used(now->tail, next_id))
+			else if (isUsed(iNode->tail, next_id))
 			{
 				next = (Node *)malloc(sizeof(Node));
 				Nodetmp = (pathNode *)malloc(sizeof(pathNode));
 				Nodetmp->id = next_id;
-				Nodetmp->pre = now->tail;
+				Nodetmp->pre = iNode->tail;
 				next->id = next_id;
 				next->next = NULL;
 				next->pre = NULL;
 				next->tail = Nodetmp;
-				next->cost = icost;
-				next->count = now->count;
+				next->cost = saveminpath;
+				next->count = iNode->count;
 				if (isVital[next_id])
 				{
-					next->count = now->count + 1;
+					next->count = iNode->count + 1;
 				}
 				tmp = head->next;
 				while (tmp != NULL && tmp->count >= next->count)
-				{ //µ½Î²ÁË»òÕßËµ¾­¹ı½Úµã½Úµã±ÈËûÉÙ£¬Ôò²åÔÚÇ°Ãæ
+				{
 					tmp = tmp->next;
 				}
 				if (tmp == NULL)
-				{ //µ½ÁËÎ²²¿
+				{
 					tail->next = next;
 					next->pre = tail;
 					tail = next;
 				}
 				else
-				{ //²åÔÚtmpÇ°Ãæ
+				{
 					next->pre = tmp->pre;
 					next->next = tmp;
 					tmp->pre->next = next;
@@ -519,268 +1071,231 @@ MARK Chain_BFS()
 	return minPath;
 }
 
-MARK BFS1213()
-{
-	int i = 0,j = 0;                              // ±ê¼Ç
-	int k = 0;
-	int iPrice = 0;
-    pMARK *pmark= (pMARK*)malloc(sizeof(pMARK)*1000000);
-    pMARK pmarktmp = NULL;
-    int route = 0;
-    int m = 0;
-    int count = 0;
-    MARK minPath;
-    int getCount = 0;
 
-    minPath.price = MAXSIZE;
 
-    pmark[route++] = mark_alloc();//³õÊ¼µã
-
-    if(isVital[src_node])pmark[0]->count++;
-
-    for(i = 0;i < node_num;i++)   //´ÓµÚ1µã±éÀúµ½µÚNpointµã
-    {
-        m = route;
-        if(route <= 0)return minPath;
-        for(k = 0;k < (m>route?route:m);k++)
-        {
-            if(pmark[k]->price >= minPath.price || pmark[k]->count < count - 2)//Èç¹û¸¸Â·¾¶ÓĞÎÊÌâ,É¾µô
-            {
-                pmarktmp = pmark[route -1];
-                pmark[route -1] = pmark[k];
-                pmark[k] = pmarktmp;
-                free(pmark[route -1]);
-                route--;
-                continue;
-            }
-            for(j = 0;j < node_num;j++)
-            {
-                if( (iPrice = GraphMatric[pmark[k]->path[pmark[k]->n-1]][j].cost) <= 20)
-                {
-                    if(!isExistNum(pmark[k]->path, pmark[k]->n, j))//·¢ÏÖÒ»¸öĞÂµÄÂ·¾¶
-                    {
-                        pmark[route++] = mark_alloc();//ÉêÇëÂ·¾¶´æ´¢¿Õ¼ä
-                        *pmark[route - 1] = *pmark[k];
-                        pmark[route - 1]->n += 1;
-                        pmark[route - 1]->path[pmark[route - 1]->n -1] = j;
-                        pmark[route - 1]->price += iPrice;
-                        //lspath( pmark[route - 1]->path, pmark[route - 1]->n);
-
-                        if(pmark[route - 1]->price >= minPath.price)//ĞÂµÄÂ·¾¶ÓĞÎÊÌâ,É¾µô
-                        {
-                            free(pmark[route - 1]);
-                            route--;
-                            continue;
-                        }
-
-                        if(isVital[j])//ÊÇ±Ø¾­½Úµã£¬¼Ó
-                        {
-                            pmark[route - 1]->count++;
-                        }
-
-                        if(pmark[route - 1]->count < count -1)//ĞÂµÄÂ·¾¶¾­¹ıµÄ±Ø¾­½ÚµãÉÙÁË,É¾µô
-                        {
-                            free(pmark[route - 1]);
-                            route--;
-                            continue;
-                        }
-                        else if(pmark[route - 1]->count > count )//±Ø¾­½Úµã¶àÁË£¬´æÆğÀ´
-                        {
-                            count = pmark[route - 1]->count;
-                        }
-
-                        if(j == dst_node)//Â·¾¶µ½´ïÄ¿µÄµØ,´ú¼ÛĞ¡Ôò±£´æ£¬µ½´ï¼´É¾µô
-                        {
-                            if(pmark[route - 1]->count == demand_node_num && pmark[route - 1]->price < minPath.price)
-                            {
-                                minPath = *pmark[route - 1];
-                                getCount++;
-                                if(getCount == 8)//4 // 8 is just ok 10s
-                                {
-                                    return minPath;
-                                }
-                            }
-                            free(pmark[route - 1]);
-                            route--;
-                            continue;
-                        }
-                    }
-                }
-            }
-            //É¾³ı´Ë´Î¸¸½Úµã
-            pmarktmp = pmark[route -1];
-            pmark[route -1] = pmark[k];
-            pmark[k] = pmarktmp;
-            free(pmark[route -1]);
-            route--;
-        }
-        //cout<<"route :"<<route<<endl;
-        arryPath(pmark,&route,count,2);//É¾³ı±Ø¾­½ÚµãÉÙµÄµã
-    }
-
-    for(i=0;i<route;i++)
-    {
-        free(pmark[i]);
-    }
-
-    free(pmark);
-
-    return minPath;
-}
-
-/*
-	ÖĞ¼ä½ÚµãÕıÏòĞÔ¼Û±È¿í¶ÈÓÅÏÈËÑË÷µÚ¶ş½×¶Î
-*/
-MARK BFS1415_B(int dst_mid, queNode* endNode)
+bool PQ_BFS_B15(int midnode, queNode* dstnode)
 {
 	int i;
-	int tmp_cost, now_id, next_id;
-	int tmpTarget = dst_mid;
-	MARK minPath;
-    minPath.price = 700;
-    minPath.n = 0;
-	queNode* now = new queNode(src_node);
-	now->path.push_back(now); //³õÊ¼½Úµã
-	pq2.push(now);              //³õÊ¼½Úµã½øÈë¶ÓÁĞ
-	while (!pq2.empty())
+	int icost, now_id, next_id;
+    priority_queue<queNode*, vector<queNode*>, Compare> pq_tmp;
+
+	queNode* iNode = new queNode(src_node);
+	iNode->path.push_back(iNode);
+	pqb.push(iNode);
+	while (!pqb.empty())
 	{
-		if (now_time >= 9.8)
+        if ((clock() - start_time)/CLOCKS_PER_SEC >= 9)
+        {
+            timeout = true;
+            return false;
+        }
+		iNode = priorityPop_B();
+		now_id = iNode->id;
+		for (i = 1; i <= out_degree[now_id][0]; i++)
 		{
-		    minPath.n = 0;
-			return minPath;
-		}
-		now = priorityPop2();
-		now_id = now->id;
-		for (i = 1; i <= out_node[now_id][0]; i++)
-		{
-			next_id = out_node[now_id][i];
-			if ((next_id == dst_node || endNode->inPath(next_id)) && next_id != tmpTarget)
+			next_id = out_degree[now_id][i];
+			if ((next_id == dst_node || dstnode->inPath(next_id)) && next_id != midnode)
 			    continue;
-			tmp_cost = now->cost + GraphMatric[now_id][next_id].cost;
-			if (next_id == tmpTarget)
+			icost = iNode->cost + GraphMatric[now_id][next_id].cost;
+			if (next_id == midnode)
 			{
-				minPath.price = tmp_cost;
-				for (queNode* n : endNode->path)
+				for (queNode* n : dstnode->path)
 				{
-					now->path.push_back(n);
+					iNode->path.push_back(n);
 				}
-				minPath = saveResult(now->path);
-				return minPath;
+				return save2minpath(iNode->path);
 			}
-			else if (!now->inPath(next_id))
+			else if (!iNode->inPath(next_id))
 			{
-				queNode * next = new queNode(next_id, tmp_cost, now->path, isVital[next_id] ? now->count + 1 : now->count);
+				queNode * next = new queNode(next_id, icost, iNode->path, isVital[next_id] ? iNode->count + 1 : iNode->count);
 				next->path.push_back(next);
-				pq2.push(next);
-				if (pq2.size() > MAX_NODE_NUM_1)
+				pqb.push(next);
+				if (pqb.size() > maxnode)
 				{
-					if (MAX_NODE_NUM_1 >= delete_times)
-						delete_num = MAX_NODE_NUM_1 - delete_times;
+					if (maxnode >= cut_num)
+						cut = maxnode - cut_num;
 					else
-						delete_num = 1;
-					delete_times += 5;
-					if (delete_num < (int)pq2.size())
+						cut = 1;
+					cut_num += 5;
+					if (cut < pqb.size())
 					{
 						queNode * node;
-						while (delete_num>0)
+						while (cut>0)
 						{
-							node = priorityPop2();
-							tmp_pq_2.push(node);
-							delete_num--;
+							node = priorityPop_B();
+							pq_tmp.push(node);
+							cut--;
 						}
-						while (pq2.size()>0)
+						while (pqb.size()>0)
 						{
-							node = priorityPop2();
+							node = priorityPop_B();
 							delete node;
 						}
-						while (tmp_pq_2.size() > 0)
+						while (pq_tmp.size() > 0)
 						{
-							node = tmp_pq_2.top();
-							tmp_pq_2.pop();
-							pq2.push(node);
+							node = pq_tmp.top();
+							pq_tmp.pop();
+							pqb.push(node);
 						}
 					}
 				}
 			}
 		}
 	}
-	minPath.n = 0;
-	return minPath;
+	return false;
 }
 
-/*
-	ÖĞ¼ä½ÚµãÕıÏòĞÔ¼Û±È¿í¶ÈÓÅÏÈËÑË÷µÚÒ»½×¶Î
-*/
-MARK BFS1415_F(int dst_mid)
+
+bool PQ_BFS_F15(int midnode)
 {
 	int i;
-	int tmp_cost, now_id, next_id;
+	int icost, now_id, next_id;
 	MARK minPath;
+    priority_queue<queNode*, vector<queNode*>, Compare> pq_tmp;
+
     minPath.price = 700;
-	queNode* now = new queNode(dst_mid);
-	now->count = 1;
-	now->path.push_back(now); //³õÊ¼½Úµã
-	pq.push(now);              //³õÊ¼½Úµã½øÈë¶ÓÁĞ
-	while (!pq.empty())
+	queNode* iNode = new queNode(midnode);
+	iNode->count = 1;
+	iNode->path.push_back(iNode);
+	pqf.push(iNode);
+	while (!pqf.empty())
 	{
-		if (now_time >= 9.5)
+		if ((clock() - start_time)/CLOCKS_PER_SEC >= 9)
 		{
-		    minPath.n = 0;
-			return minPath;
+			timeout = true;
+			return false;
 		}
-		now = priorityPop();
-		now_id = now->id;
-		for (i = 1; i <= out_node[now_id][0]; i++)
+		iNode = priorityPop_F();
+		now_id = iNode->id;
+		for (i = 1; i <= out_degree[now_id][0]; i++)
 		{
-			next_id = out_node[now_id][i];
-			tmp_cost = now->cost + GraphMatric[now_id][next_id].cost;
-			if (tmp_cost >= minPath.price)
+			next_id = out_degree[now_id][i];
+			icost = iNode->cost + GraphMatric[now_id][next_id].cost;
+			if (icost >= minPath.price)
 			{
 				continue;
 			}
 			if (next_id == dst_node)
 			{
-				if (now->count == demand_node_num)
+				if (iNode->count == demand_node_num)
 				{
-					minPath.price = tmp_cost;
-					minPath = BFS1415_B(dst_mid, now);
-					if (minPath.n > 0)
-					    return minPath;
+					minPath.price = icost;
+					if(PQ_BFS_B15(midnode, iNode))
+					{
+					    return true;
+					}
 				}
 				else
 				    continue;
 			}
-			else if (!now->inPath(next_id))
+			else if (!iNode->inPath(next_id))
 			{
-				queNode * next = new queNode(next_id, tmp_cost, now->path, isVital[next_id] ? now->count + 1 : now->count);
+				queNode * next = new queNode(next_id, icost, iNode->path, isVital[next_id] ? iNode->count + 1 : iNode->count);
 				next->path.push_back(next);
-				pq.push(next);
-				if (pq.size() > MAX_NODE_NUM_1)
+				pqf.push(next);
+				if (pqf.size() > maxnode)
 				{
-					if (MAX_NODE_NUM_1 >= delete_times)
-						delete_num = MAX_NODE_NUM_1 - delete_times;
+					if (maxnode >= cut_num)
+					{
+						cut = maxnode - cut_num;
+				    }
 					else
-						delete_num = 1;
-					delete_times += 5;
-					if (delete_num < (int)pq.size())
+					{
+						cut = 1;
+					}
+					cut_num += 5;
+					if (cut < pqf.size())
 					{
 						queNode * node;
-						while (delete_num>0)
+						while (cut>0)
 						{
-							node = priorityPop();
-							tmp_pq.push(node);
-							delete_num--;
+							node = priorityPop_F();
+							pq_tmp.push(node);
+							cut--;
 						}
-						while (pq.size()>0)
+						while (pqf.size()>0)
 						{
-							node = priorityPop();
+							node = priorityPop_F();
 							delete node;
 						}
-						while (tmp_pq.size() > 0)
+						while (pq_tmp.size() > 0)
 						{
-							node = tmp_pq.top();
-							tmp_pq.pop();
-							pq.push(node);
+							node = pq_tmp.top();
+							pq_tmp.pop();
+							pqf.push(node);
+						}
+					}
+				}
+			}
+		}
+	}
+	minPath.n = 0;
+	return false;
+}
+
+MARK PQ_BFS_B(int midnode, queNode* dstnode)
+{
+	int i;
+	int icost, now_id, next_id;
+	MARK minPath;
+    priority_queue<queNode*, vector<queNode*>, Compare> pq_tmp;
+
+    minPath.price = 700;
+    minPath.n = 0;
+	queNode* iNode = new queNode(src_node);
+	iNode->path.push_back(iNode);
+	pqb.push(iNode);
+	while (!pqb.empty())
+	{
+		iNode = priorityPop_B();
+		now_id = iNode->id;
+		for (i = 1; i <= out_degree[now_id][0]; i++)
+		{
+			next_id = out_degree[now_id][i];
+			if ((next_id == dst_node || dstnode->inPath(next_id)) && next_id != midnode)
+			    continue;
+			icost = iNode->cost + GraphMatric[now_id][next_id].cost;
+			if (next_id == midnode)
+			{
+				minPath.price = icost;
+				for (queNode* n : dstnode->path)
+				{
+					iNode->path.push_back(n);
+				}
+				minPath = save2minPath(iNode->path);
+				return minPath;
+			}
+			else if (!iNode->inPath(next_id))
+			{
+				queNode * next = new queNode(next_id, icost, iNode->path, isVital[next_id] ? iNode->count + 1 : iNode->count);
+				next->path.push_back(next);
+				pqb.push(next);
+				if (pqb.size() > maxnode)
+				{
+					if (maxnode >= cut_num)
+						cut = maxnode - cut_num;
+					else
+						cut = 1;
+					cut_num += 5;
+					if (cut < pqb.size())
+					{
+						queNode * node;
+						while (cut>0)
+						{
+							node = priorityPop_B();
+							pq_tmp.push(node);
+							cut--;
+						}
+						while (pqb.size()>0)
+						{
+							node = priorityPop_B();
+							delete node;
+						}
+						while (pq_tmp.size() > 0)
+						{
+							node = pq_tmp.top();
+							pq_tmp.pop();
+							pqb.push(node);
 						}
 					}
 				}
@@ -791,31 +1306,114 @@ MARK BFS1415_F(int dst_mid)
 	return minPath;
 }
 
-/*
-ÖĞ¼ä½ÚµãĞÔ¼Û±È¿í¶ÈÓÅÏÈËÑË÷Èë¿Úº¯Êı
-*/
-MARK BFS14()
+
+MARK PQ_BFS_F(int midnode)
 {
-	int dst_mid, i,j;
+	int i;
+	int icost, now_id, next_id;
 	MARK minPath;
-	for (i = 0; i < MAX_NODE - 1; i++)
+    priority_queue<queNode*, vector<queNode*>, Compare> pq_tmp;
+
+    minPath.price = 700;
+	queNode* iNode = new queNode(midnode);
+	iNode->count = 1;
+	iNode->path.push_back(iNode);
+	pqf.push(iNode);
+	while (!pqf.empty())
+	{
+		iNode = priorityPop_F();
+		now_id = iNode->id;
+		for (i = 1; i <= out_degree[now_id][0]; i++)
+		{
+			next_id = out_degree[now_id][i];
+			icost = iNode->cost + GraphMatric[now_id][next_id].cost;
+			if (icost >= minPath.price)
+			{
+				continue;
+			}
+			if (next_id == dst_node)
+			{
+				if (iNode->count == demand_node_num)
+				{
+					minPath.price = icost;
+					minPath = PQ_BFS_B(midnode, iNode);
+					if (minPath.n > 0)
+					{
+					    return minPath;
+					}
+				}
+				else
+				    continue;
+			}
+			else if (!iNode->inPath(next_id))
+			{
+				queNode * next = new queNode(next_id, icost, iNode->path, isVital[next_id] ? iNode->count + 1 : iNode->count);
+				next->path.push_back(next);
+				pqf.push(next);
+				if (pqf.size() > maxnode)
+				{
+					if (maxnode >= cut_num)
+					{
+						cut = maxnode - cut_num;
+				    }
+					else
+					{
+						cut = 1;
+					}
+					cut_num += 5;
+					if (cut < pqf.size())
+					{
+						queNode * node;
+						while (cut>0)
+						{
+							node = priorityPop_F();
+							pq_tmp.push(node);
+							cut--;
+						}
+						while (pqf.size()>0)
+						{
+							node = priorityPop_F();
+							delete node;
+						}
+						while (pq_tmp.size() > 0)
+						{
+							node = pq_tmp.top();
+							pq_tmp.pop();
+							pqf.push(node);
+						}
+					}
+				}
+			}
+		}
+	}
+	minPath.n = 0;
+	return minPath;
+}
+
+MARK PQ_BFS(int edge_num)
+{
+	int midnode, i,j;
+	MARK minPath;
+    minPath.n = 0;
+
+    for (i = 0; i < MAX_NODE - 1; i++)
 	{
     	for (j = 0; j < MAX_NODE - 1; j++)
     	{
     		if (GraphMatric[i][j].cost <= 20)
     		{
-    			out_node[i][0]++;
-    			out_node[i][out_node[i][0]] = j;
+    			out_degree[i][0]++;
+    			out_degree[i][out_degree[i][0]] = j;
     		}
     	}
     }
 
-	minPath.n = 0;
+    maxnode = 5000;
 
 	for (i = demand_node_num - 1; i >= 0; i--)
 	{
-		dst_mid = demand_node[i];
-		minPath = BFS1415_F(dst_mid);
+		midnode = demand_node[i];
+		minPath = PQ_BFS_F(midnode);
 		if (minPath.count == demand_node_num)
 		{
 			return minPath;
@@ -824,34 +1422,34 @@ MARK BFS14()
 	return minPath;
 }
 
-/*
-ÖĞ¼ä½ÚµãĞÔ¼Û±È¿í¶ÈÓÅÏÈËÑË÷Èë¿Úº¯Êı
-*/
-MARK BFS15()
-{
-	int dst_mid, i,j;
-	MARK minPath;
-	for (i = 0; i < MAX_NODE - 1; i++)
-	{
-    	for (j = 0; j < MAX_NODE - 1; j++)
-    	{
-    		if (GraphMatric[i][j].cost <= 20)
-    		{
-    			out_node[i][0]++;
-    			out_node[i][out_node[i][0]] = j;
-    		}
-    	}
-    }
 
-	minPath.n = 0;
+MARK PQ_BFS15(int edge_num)
+{
+	int midnode, i,j;
+	MARK minPath;
+    minPath.n = 0;
+    start_time = clock();
+	for (i = MAX_NODE - 1; i >= 0; i--)
+	{
+		for (j = MAX_NODE - 1; j >= 0; j--)
+		{
+			if (GraphMatric[i][j].cost < 999)
+			{
+				out_degree[i][0]++;
+				out_degree[i][out_degree[i][0]] = j;
+			}
+		}
+	}
+    maxnode = 3000;
 
 	for (i = demand_node_num - 1; i >= 0; i--)
 	{
-		dst_mid = demand_node[i];
-		minPath = BFS1415_F(dst_mid);
-		if (minPath.count == demand_node_num)
+		midnode = demand_node[i];
+		if(PQ_BFS_F15(midnode))
 		{
-			return minPath;
+		    recordPath(&minpath);
+		    minPath.n = 0;
+		    return minPath;
 		}
 	}
 	return minPath;
@@ -863,9 +1461,7 @@ void search_route(char *topo[5000], int edge_num, char *demand)
     int rc = 0;
     int i = 0,j =0;
     MARK minPath;
-    time_start = clock();
 
-    ///³õÊ¼»¯ÁÚ½Ó¾ØÕó Ä¬ÈÏ×ÔÉí²»ÄÜµ½×ÔÉí
     for (int i = 0; i < MAX_NODE; i++)
     {
         for (int j = 0; j < MAX_NODE; j++)
@@ -874,31 +1470,23 @@ void search_route(char *topo[5000], int edge_num, char *demand)
         }
     }
 
-    ///´æ´¢Í¼ĞÅÏ¢
     for (i = 0; i < edge_num; i++)
     {
         rc = sscanf(topo[i],"%d%*c%d%*c%d%*c%d",&id,&row,&column,&cost);
-        if(rc != 4)
+        if(rc == 4 && cost < GraphMatric[row][column].cost)
         {
-            printf("sscanf error and return %d",rc);
-            return;
-        }
-        else
-        {
-            GraphMatric[row][column].cost = cost;//Â·¾¶´ú¼Û
-            GraphMatric[row][column].id = id;//Â·¾¶id
-            //out_node[row][0]++;//³ö½ÚµãÊıÄ¿
-		    //out_node[row][out_node[row][0]] = column;//³ö½Úµã ½ÚµãºÅ
+            GraphMatric[row][column].cost = cost;
+            GraphMatric[row][column].id = id;
+            Link[id].cost = cost;
+            Link[id].id = id;
+            Link[id].src = row;
+            Link[id].dst = column;
             node_num = (row > node_num)? row: node_num;
             node_num = (column> node_num)? column: node_num;
         }
     }
-    node_num++;//½ÚµãÊı
+    node_num++;
 
-
-
-
-    ///´æ´¢ÃüÁîĞÅÏ¢
     const char *d = ",";
     char *p;
     p = strtok(demand, d);
@@ -927,63 +1515,90 @@ void search_route(char *topo[5000], int edge_num, char *demand)
 
     for (i = 0; i < node_num; i++)
 	{
-		isVital[i] = false;//Ä¬ÈÏ²»ÊÇ±Ø¾­½Úµã
+		isVital[i] = false;
 	}
 
 	for (i = 0; i < demand_node_num; i++)
 	{
-		isVital[demand_node[i]] = true;//demand_node[i]ÊÇ±Ø¾­½ÚµãµÄid
+		isVital[demand_node[i]] = true;
 	}
-/*
-1-6:<300
-7:300<500
-8:500-800
-9:1000-1100
-10:1100-1500
-11:2000-2200
-12 == 2000
-13 == 2000
-14:>=2375
-15:2200= - 2375
+
+/*                      å”‰ï¼Œäººä¸‘è¿˜æ˜¯è¦å¤šè¯»ä¹¦
+//                .-~~~~~~~~~-._       _.-~~~~~~~~~-.
+//            __.'              ~.   .~              `.__
+//          .'//                  \./                  \\`.
+//        .'//                     |                     \\`.
+//      .'// .-~"""""""~~~~-._     |     _,-~~~~"""""""~-. \\`.
+//    .'//.-"                 `-.  |  .-'                 "-.\\`.
+//  .'//______.============-..   \ | /   ..-============.______\\`.
+//.'______________________________\|/______________________________`.
+//                        è°¢è°¢æ‚¨è§‚çœ‹æˆ‘çš„ä»£ç 
 */
 
-    if(edge_num <= 300)// 1-6   ok ²»Òª¸ü¸Ä
+    /*if(edge_num <= 300)//1-6
     {
-        minPath = Matrix_BFS(4,3,3,false);//¾¡Á¦ÕÒ×îÓÅ
+        minPath = Matrix_BFS(4,3,3,false,5);
     }
-    else if(edge_num <= 500)// 7 ok ²»Òª¸ü¸Ä
+    else if(edge_num <= 500)//78
     {
-        minPath = Matrix_BFS(4,2,3,false);//¾¡Á¦ÕÒ×îÓÅ
-    }
-    else if(edge_num <= 1000)//8 ok
+        minPath = Matrix_BFS(4,2,3,false,2);
+    }*/
+    if(edge_num > 500&&edge_num <= 1000)//8
     {
-        minPath = Matrix_BFS(2,2,1,false);//¾¡Á¦ÕÒ×îÓÅ
+minPath = Matrix_BFS(2,2,1,false,2);
+        if(minPath.n == 0)
+        {
+            return;
+        }
+        recordPath(&minPath);
     }
-    else if(edge_num <= 1100)//9 just ok
+    /*else if(edge_num <= 1100)//9
     {
-        minPath = Matrix_BFS(1,0,1,false);
-    }
-    else if(edge_num <= 1500)//10 just ok
-    {
-        minPath = Chain_BFS();
-    }
-    else if(edge_num <= 2000)// 12-13 ok
-    {
-        minPath = BFS1213();
-    }
-    else if(edge_num <= 2200)//11 ok
+        minPath = Matrix_BFS(1,0,1,false,2);
+    }*/
+    else if(edge_num > 1100 && edge_num <= 1500)//10
     {
         minPath = Chain_BFS();
+        if(minPath.n == 0)
+        {
+            return;
+        }
+        recordPath(&minPath);
     }
-    else if(edge_num < 2375)//15 not ok
+    else if(edge_num > 1500 && edge_num <= 2000)//12 13
     {
-		minPath = BFS15();
+        minPath = Matrix_BFS(2,1,2,true,1);
+        if(minPath.n == 0)
+        {
+            return;
+        }
+        recordPath(&minPath);
     }
-    else                    //14 not ok
+    /*else if(edge_num <= 2200)//11
     {
-        minPath = BFS14();
+        minPath = Chain_BFS();
+    }*/
+    else if(edge_num >= 2375)//14
+    {
+        minPath = PQ_BFS(edge_num);
+        if(minPath.n == 0)
+        {
+            return;
+        }
+        recordPath(&minPath);
     }
-    lspath(minPath.path, minPath.n);
-    recordPath(&minPath);
+    else  if(edge_num > 2200 &&edge_num < 2375)                  //15
+    {
+        minPath = PQ_BFS15(edge_num);
+        if(minPath.n == 0)
+        {
+            return;
+        }
+        recordPath(&minPath);
+    }
+    else
+        lp_solve(edge_num);
+
+
 }
 
